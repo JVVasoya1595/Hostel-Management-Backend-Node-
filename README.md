@@ -346,5 +346,3 @@ HostelCore provides a complete backend solution for hostel management with secur
 
 
 ---
-
-If you want, I can also create a **perfect README that helps you get internship/job offers (with badges, screenshots, and architecture diagram)** 🚀
