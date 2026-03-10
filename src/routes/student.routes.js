@@ -1,22 +1,12 @@
 const router = require('express').Router();
 const controller = require('../controllers/student.controller');
-const auth = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/role.middleware');
 
-// Public
-router.post('/register', controller.register);
-router.post('/login', controller.login);
+// GET endpoints - uses encrypted data in params
+router.get('/profile/:data', controller.getProfile);
+router.get('/fee-status/:data', controller.getFeeStatus);
 
-// Protected — Student only
-router.get('/profile', auth, authorize('STUDENT'), controller.getProfile);
-router.get('/my-room', auth, authorize('STUDENT'), controller.getMyRoom);
-
-// Forbidden — Students cannot create any users
-router.post('/add/:userType', auth, (req, res) => {
-    res.status(403).json({
-        warning: 'Action Not Permitted',
-        message: `As a STUDENT, you are not allowed to create a ${req.params.userType.toUpperCase()}. Only ADMIN or MANAGER roles can create users.`
-    });
-});
+// POST endpoints - uses encrypted data in body
+router.post('/leave-request', controller.submitLeaveRequest);
+router.post('/complaint', controller.submitComplaint);
 
 module.exports = router;

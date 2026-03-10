@@ -1,138 +1,175 @@
-const mongoose = require('mongoose');
-const service = require('../services/managerAuth.service');
-const roomService = require('../services/room.service');
+const logger = require('../utils/logger');
+const { encryptData } = require('../utils/encryption');
+const { validateManagerRequest, validateManagerRequestBody } = require('../utils/validators/manager.validator');
+const managerService = require('../services/manager.service');
 
-exports.register = async (req, res) => {
+const sendEncryptedResponse = (res, status, message, payload) => {
+    return res.status(status).json({
+        message,
+        data: encryptData(payload),
+    });
+};
+
+const resolveErrorStatus = (error) => {
+    const message = String(error.message || '').toLowerCase();
+    if (message.includes('not found')) {
+        return 404;
+    }
+
+    return 400;
+};
+
+const handleActionError = (res, action, error) => {
+    logger.error(`${action} failed:`, error);
+    return res.status(resolveErrorStatus(error)).json({ message: error.message || 'SERVER ERROR' });
+};
+
+const runParamRequest = async (req, res, action, successMessage, handler) => {
     try {
-        const user = await service.register(req.body);
-        res.json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
+        logger.info(`${action} request received`);
+        const validation = await validateManagerRequest(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
+        }
+
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, 200, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-exports.login = async (req, res) => {
+const runBodyRequest = async (req, res, action, successMessage, handler, successStatus = 200) => {
     try {
-        const token = await service.login(req.body.email, req.body.password);
-        res.json({ token });
-    } catch (err) {
-        res.status(401).json({ message: err.message });
+        logger.info(`${action} request received`);
+        const validation = await validateManagerRequestBody(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
+        }
+
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, successStatus, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-exports.getProfile = async (req, res) => {
-    try {
-        const profile = await service.getProfile(req.user.id);
-        if (!profile) return res.status(404).json({ message: "Manager not found" });
-        res.json(profile);
-    } catch (err) {
-        res.status(404).json({ message: err.message });
-    }
-};
+const getProfile = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get manager profile',
+    'Profile retrieved successfully',
+    ({ user }) => managerService.getProfile(user._id)
+);
 
-exports.updateProfile = async (req, res) => {
-    try {
-        const profile = await service.updateProfile(req.user.id, req.body);
-        if (!profile) return res.status(404).json({ message: "Manager not found" });
-        res.json(profile);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getDashboard = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get manager dashboard',
+    'Dashboard retrieved successfully',
+    ({ user }) => managerService.getDashboard(user._id)
+);
 
-exports.getAllStudents = async (req, res) => {
-    try {
-        const students = await service.getAllStudents();
-        res.json(students);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getAssignmentOverview = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get manager assignment overview',
+    'Assignment overview retrieved successfully',
+    ({ user }) => managerService.getAssignmentOverview(user._id)
+);
 
-// --- Manager creates users ---
-exports.createStudent = async (req, res) => {
-    try {
-        const user = await service.createStudent(req.body);
-        res.status(201).json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getAllStudents = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get managed students',
+    'Students retrieved successfully',
+    ({ user, data }) => managerService.getManagedStudents(user._id, data)
+);
 
-exports.createParent = async (req, res) => {
-    try {
-        const user = await service.createParent(req.body);
-        res.status(201).json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const updateStudentInfo = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update student information',
+    'Student updated successfully',
+    ({ user, data }) => managerService.updateStudentInfo(user._id, data)
+);
 
-// --- Manager gets user by ID ---
-exports.getStudentById = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.getStudentById(req.params.id);
-        if (!user) return res.status(404).json({ message: "Student not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const checkInStudent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Check in student',
+    'Student checked in successfully',
+    ({ user, data }) => managerService.checkInStudent(user._id, data)
+);
 
-exports.updateStudent = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.updateStudent(req.params.id, req.body);
-        if (!user) return res.status(404).json({ message: "Student not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const checkOutStudent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Check out student',
+    'Student checked out successfully',
+    ({ user, data }) => managerService.checkOutStudent(user._id, data)
+);
 
-exports.getParentById = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.getParentById(req.params.id);
-        if (!user) return res.status(404).json({ message: "Parent not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getRoomVacancy = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get room vacancy',
+    'Room vacancy retrieved successfully',
+    ({ user }) => managerService.getRoomVacancy(user._id)
+);
 
-exports.updateParent = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.updateParent(req.params.id, req.body);
-        if (!user) return res.status(404).json({ message: "Parent not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getLeaveRequests = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get leave requests',
+    'Leave requests retrieved successfully',
+    ({ user, data }) => managerService.getLeaveRequests(user._id, data)
+);
 
-exports.assignRoom = async (req, res) => {
-    try {
-        const { student_id, room_id } = req.body;
-        if (!student_id || !room_id) return res.status(400).json({ message: 'student_id and room_id are required' });
-        const result = await roomService.assignRoom(student_id, room_id);
-        res.json(result);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getComplaints = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get complaints',
+    'Complaints retrieved successfully',
+    ({ user, data }) => managerService.getComplaints(user._id, data)
+);
 
-exports.getAvailableRooms = async (req, res) => {
-    try {
-        const rooms = await roomService.getAvailableRooms();
-        res.json(rooms);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+const updateComplaint = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update complaint',
+    'Complaint updated successfully',
+    ({ user, data }) => managerService.updateComplaint(user._id, data)
+);
+
+const recordAttendance = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Record attendance',
+    'Attendance recorded successfully',
+    ({ user, data }) => managerService.recordAttendance(user._id, data)
+);
+
+const getAttendanceReport = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get attendance report',
+    'Attendance report retrieved successfully',
+    ({ user, data }) => managerService.getAttendanceReport(user._id, data)
+);
+
+module.exports = {
+    getProfile,
+    getDashboard,
+    getAssignmentOverview,
+    getAllStudents,
+    updateStudentInfo,
+    checkInStudent,
+    checkOutStudent,
+    getRoomVacancy,
+    getLeaveRequests,
+    getComplaints,
+    updateComplaint,
+    recordAttendance,
+    getAttendanceReport,
 };

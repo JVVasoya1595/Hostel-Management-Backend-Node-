@@ -1,17 +1,13 @@
-const crypto = require('crypto');
+const CryptoJS = require('crypto-js');
 
-const algorithm = 'aes-128-cbc';
-
-exports.encrypt = (text) => {
-    const key = Buffer.from(process.env.STUDENT_ENCRYPT_KEY, 'hex');
-    const iv = Buffer.from(process.env.STUDENT_ENCRYPT_IV, 'hex');
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    return cipher.update(text, 'utf8', 'hex') + cipher.final('hex');
+exports.decryptData = (encryptedData) => {
+  const bytes = CryptoJS.AES.decrypt(encryptedData, process.env.ENCRYPTION_SECRET);
+  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 };
 
-exports.decrypt = (encrypted) => {
-    const key = Buffer.from(process.env.STUDENT_ENCRYPT_KEY, 'hex');
-    const iv = Buffer.from(process.env.STUDENT_ENCRYPT_IV, 'hex');
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    return decipher.update(encrypted, 'hex', 'utf8') + decipher.final('utf8');
+exports.encryptData = (data) => {
+  return CryptoJS.AES.encrypt(
+    JSON.stringify(data),
+    process.env.ENCRYPTION_SECRET
+  ).toString();
 };

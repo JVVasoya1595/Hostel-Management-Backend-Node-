@@ -1,29 +1,43 @@
 const router = require('express').Router();
 const controller = require('../controllers/admin.controller');
-const auth = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/role.middleware');
 
-// Public
-router.post('/register', controller.register);
-router.post('/login', controller.login);
+router.get('/profile/:data', controller.getProfile);
+router.get('/dashboard/:data', controller.getDashboard);
+router.get('/managers/:data', controller.getAllManagers);
+router.get('/students/:data', controller.getAllStudents);
+router.get('/parents/:data', controller.getAllParents);
+router.get('/floors/:data', controller.getAllFloors);
+router.get('/rooms/available/:data', controller.getAvailableRooms);
+router.get('/rooms/:data', controller.getAllRooms);
+router.get('/fees/:data', controller.getFeePayments);
+router.get('/notifications/:data', controller.getNotifications);
 
-// Protected — Admin only
-router.get('/profile', auth, authorize('ADMIN'), controller.getProfile);
-router.get('/students', auth, authorize('ADMIN'), controller.getAllStudents);
-router.get('/managers', auth, authorize('ADMIN'), controller.getAllManagers);
-router.get('/parents', auth, authorize('ADMIN'), controller.getAllParents);
+router.post('/managers', controller.createManager);
+router.put('/managers', controller.updateManager);
+router.delete('/managers', controller.deleteManager);
 
-// Admin creates users
-router.post('/add/manager', auth, authorize('ADMIN'), controller.createManager);
-router.post('/add/student', auth, authorize('ADMIN'), controller.createStudent);
-router.post('/add/parent', auth, authorize('ADMIN'), controller.createParent);
+router.post('/students', controller.createStudent);
+router.put('/students', controller.updateStudent);
+router.delete('/students', controller.deleteStudent);
 
-// Admin gets user by ID
-router.get('/manager/:id', auth, authorize('ADMIN'), controller.getManagerById);
-router.get('/student/:id', auth, authorize('ADMIN'), controller.getStudentById);
-router.get('/parent/:id', auth, authorize('ADMIN'), controller.getParentById);
+router.post('/parents', controller.createParent);
+router.put('/parents', controller.updateParent);
+router.delete('/parents', controller.deleteParent);
 
-// Admin updates user
-router.put('/manager/:id', auth, authorize('ADMIN'), controller.updateManager);
+router.post('/floors', controller.createFloor);
+router.put('/floors', controller.updateFloor);
+router.delete('/floors', controller.deleteFloor);
+
+router.post('/rooms', controller.createRoom);
+router.put('/rooms', controller.updateRoom);
+router.delete('/rooms', controller.deleteRoom);
+
+router.post('/room-allocation', controller.assignRoom);
+router.delete('/room-allocation', controller.unassignRoom);
+
+router.post('/fees', controller.recordFeePayment);
+
+router.post('/notifications', controller.createNotification);
+router.delete('/notifications', controller.deleteNotification);
 
 module.exports = router;

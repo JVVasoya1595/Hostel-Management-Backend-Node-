@@ -1,9 +1,13 @@
-const bcrypt = require('bcrypt');
+const CryptoJS = require('crypto-js');
 
-exports.encrypt = async (password) => {
-    return await bcrypt.hash(password, 12);
+exports.decryptData = (encryptedData) => {
+  const bytes = CryptoJS.AES.decrypt(encryptedData, process.env.ENCRYPTION_SECRET);
+  return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 };
 
-exports.decrypt = async (password, hash) => {
-    return await bcrypt.compare(password, hash);
+exports.encryptData = (data) => {
+  return CryptoJS.AES.encrypt(
+    JSON.stringify(data),
+    process.env.ENCRYPTION_SECRET
+  ).toString();
 };

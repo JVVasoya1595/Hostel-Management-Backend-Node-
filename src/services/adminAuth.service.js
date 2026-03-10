@@ -2,25 +2,28 @@ const Admin = require('../models/admin.model');
 const Student = require('../models/student.model');
 const Manager = require('../models/manager.model');
 const Parent = require('../models/parent.model');
-const { encrypt, decrypt } = require('../utils/encryption/admin.encrypt');
-const { encrypt: encryptManager } = require('../utils/encryption/manager.encrypt');
-const { encrypt: encryptStudent } = require('../utils/encryption/student.encrypt');
-const { encrypt: encryptParent } = require('../utils/encryption/parent.encrypt');
+const { encryptData, decryptData } = require('../utils/encryption/admin.encrypt');
+const { encryptData: encryptManagerData } = require('../utils/encryption/manager.encrypt');
+const { encryptData: encryptStudentData } = require('../utils/encryption/student.encrypt');
+const { encryptData: encryptParentData } = require('../utils/encryption/parent.encrypt');
 const jwt = require('jsonwebtoken');
 
 exports.register = async (data) => {
-    const encryptedPassword = encrypt(data.password);
-    return await Admin.create({ ...data, encryptedPassword });
+    const existing = await Admin.findOne({ email: data.email });
+    if (existing) throw new Error('An admin with this email already exists');
+    const { password, ...rest } = data;
+    const encryptedPassword = encryptData({ password });
+    return await Admin.create({ ...rest, encryptedPassword });
 };
 
 exports.login = async (email, password) => {
     const admin = await Admin.findOne({ email });
     if (!admin) throw new Error("Admin not found");
 
-    const decrypted = decrypt(admin.encryptedPassword);
-    if (decrypted !== password) throw new Error("Invalid password");
+    const decrypted = decryptData(admin.encryptedPassword);
+    if (decrypted.password !== password) throw new Error("Invalid password");
 
-    return jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET);
+    return jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
 exports.getProfile = async (id) => {
@@ -41,20 +44,26 @@ exports.getAllParents = async () => {
 
 // --- Admin creates users ---
 exports.createManager = async (data) => {
+    const existing = await Manager.findOne({ email: data.email });
+    if (existing) throw new Error('A manager with this email already exists');
     const { password, ...rest } = data;
-    const encryptedPassword = encryptManager(password);
+    const encryptedPassword = encryptManagerData({ password });
     return await Manager.create({ ...rest, encryptedPassword });
 };
 
 exports.createStudent = async (data) => {
+    const existing = await Student.findOne({ email: data.email });
+    if (existing) throw new Error('A student with this email already exists');
     const { password, ...rest } = data;
-    const encryptedPassword = encryptStudent(password);
+    const encryptedPassword = encryptStudentData({ password });
     return await Student.create({ ...rest, encryptedPassword });
 };
 
 exports.createParent = async (data) => {
+    const existing = await Parent.findOne({ email: data.email });
+    if (existing) throw new Error('A parent with this email already exists');
     const { password, ...rest } = data;
-    const encryptedPassword = await encryptParent(password); // bcrypt is async
+    const encryptedPassword = encryptParentData({ password });
     return await Parent.create({ ...rest, encryptedPassword });
 };
 
@@ -65,7 +74,7 @@ exports.getManagerById = async (id) => {
 
 exports.updateManager = async (id, data) => {
     if (data.password) {
-        data.encryptedPassword = encryptManager(data.password);
+        data.encryptedPassword = encryptManagerData({ password: data.password });
         delete data.password;
     }
     return await Manager.findByIdAndUpdate(id, data, { new: true }).select('-encryptedPassword');
@@ -73,6 +82,14 @@ exports.updateManager = async (id, data) => {
 
 exports.getStudentById = async (id) => {
     return await Student.findById(id).select('-encryptedPassword');
+};
+
+exports.updateStudent = async (id, data) => {
+    if (data.password) {
+        data.encryptedPassword = encryptStudentData({ password: data.password });
+        delete data.password;
+    }
+    return await Student.findByIdAndUpdate(id, data, { new: true }).select('-encryptedPassword');
 };
 
 exports.getParentById = async (id) => {

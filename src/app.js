@@ -12,7 +12,10 @@ app.use((req, res, next) => {
     next();
 });
 
-
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });
+});
 
 // Routes
 app.use('/api/admin', require('./routes/admin.routes'));
@@ -21,5 +24,16 @@ app.use('/api/student', require('./routes/student.routes'));
 app.use('/api/parent', require('./routes/parent.routes'));
 app.use('/api/floor', require('./routes/floor.routes'));
 app.use('/api/room', require('./routes/room.routes'));
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ message: `Route ${req.method} ${req.originalUrl} not found` });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error(`[ERROR] ${err.message}`);
+    res.status(err.status || 500).json({ message: err.message || 'Internal Server Error' });
+});
 
 module.exports = app;

@@ -3,108 +3,180 @@ const Room = require('../models/room.model');
 const Bed = require('../models/bed.model');
 const Student = require('../models/student.model');
 
-// Create floor + auto-create 2 rooms + 2 beds each
-exports.createFloor = async (floor_number) => {
-    const existing = await Floor.findOne({ floor_number });
-    if (existing) throw new Error(`Floor ${floor_number} already exists`);
-
-    const floor = await Floor.create({ floor_number, total_capacity: 4 });
-
-    for (let r = 1; r <= 2; r++) {
-        const room = await Room.create({
-            room_number: `${floor_number}0${r}`,
-            floor_id : floor._id,
-            total_beds: 2,
-            occupied_beds: 0
-        });
-        for (let b = 1; b <= 2; b++) {
-            await Bed.create({
-                bed_number: `B${b}`,
-                room_id: room._id
-            });
-        }
+const parseInteger = (value, label) => {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+        throw new Error(`${label} must be a non-negative integer`);
     }
 
-    return floor;
+    return parsed;
 };
 
-// Get all floors with room / bed stats
-exports.getAllFloors = async () => {
-    const floors = await Floor.find().lean();
-    const result = [];
+const buildRoomNumber = (floorNumber, roomIndex) => `${floorNumber}${String(roomIndex).padStart(2, '0')}`;
 
-    for (const floor of floors) {
-        const rooms = await Room.find({ floor_id: floor._id }).lean();
-        let totalBeds = 0, occupiedBeds = 0;
-        for (const room of rooms) {
-            totalBeds += room.total_beds;
-            occupiedBeds += room.occupied_beds;
-        }
-        result.push({
+const createBedsForRoom = async (roomId, totalBeds) => {
+    if (totalBeds <= 0) {
+        return;
+    }
+
+    const bedDocuments = Array.from({ length: totalBeds }, (_, index) => ({
+        bed_number: `B${index + 1}`,
+        room_id: roomId,
+    }));
+
+    await Bed.insertMany(bedDocuments);
+};
+
+const recalculateFloorCapacity = async (floorId) => {
+    const rooms = await Room.find({ floor_id: floorId }).select('total_beds');
+    const totalCapacity = rooms.reduce((sum, room) => sum + room.total_beds, 0);
+
+    return Floor.findByIdAndUpdate(
+        floorId,
+        { total_capacity: totalCapacity },
+        { new: true }
+    );
+};
+
+const updateFloorStatus = async (floorId) => {
+    const rooms = await Room.find({ floor_id: floorId }).select('status');
+    const status = rooms.length > 0 && rooms.every((room) => room.status === 'FULL')
+        ? 'FULL'
+        : 'AVAILABLE';
+
+    return Floor.findByIdAndUpdate(
+        floorId,
+        { status },
+        { new: true }
+    );
+};
+
+const createFloor = async (floor_number, options = {}) => {
+    const normalizedFloorNumber = parseInteger(floor_number, 'floor_number');
+    if (normalizedFloorNumber === 0) {
+        throw new Error('floor_number must be greater than 0');
+    }
+
+    const existingFloor = await Floor.findOne({ floor_number: normalizedFloorNumber });
+    if (existingFloor) {
+        throw new Error(`Floor ${normalizedFloorNumber} already exists`);
+    }
+
+    const roomCount = options.room_count === undefined ? 0 : parseInteger(options.room_count, 'room_count');
+    const bedsPerRoom = options.beds_per_room === undefined ? 2 : parseInteger(options.beds_per_room, 'beds_per_room');
+    if (bedsPerRoom === 0) {
+        throw new Error('beds_per_room must be greater than 0');
+    }
+
+    const floor = await Floor.create({
+        floor_number: normalizedFloorNumber,
+        total_capacity: 0,
+        status: 'AVAILABLE',
+    });
+
+    for (let roomIndex = 1; roomIndex <= roomCount; roomIndex += 1) {
+        const room = await Room.create({
+            room_number: buildRoomNumber(normalizedFloorNumber, roomIndex),
+            floor_id: floor._id,
+            total_beds: bedsPerRoom,
+            occupied_beds: 0,
+            status: 'AVAILABLE',
+        });
+
+        await createBedsForRoom(room._id, bedsPerRoom);
+    }
+
+    await recalculateFloorCapacity(floor._id);
+    await updateFloorStatus(floor._id);
+
+    return Floor.findById(floor._id);
+};
+
+const getAllFloors = async () => {
+    const floors = await Floor.find().sort({ floor_number: 1 }).lean();
+
+    return Promise.all(floors.map(async (floor) => {
+        const rooms = await Room.find({ floor_id: floor._id }).sort({ room_number: 1 }).lean();
+        const totalBeds = rooms.reduce((sum, room) => sum + room.total_beds, 0);
+        const occupiedBeds = rooms.reduce((sum, room) => sum + room.occupied_beds, 0);
+
+        return {
             ...floor,
             total_rooms: rooms.length,
             total_beds: totalBeds,
-            occupied_beds: occupiedBeds
-        });
-    }
-    return result;
+            occupied_beds: occupiedBeds,
+            available_beds: totalBeds - occupiedBeds,
+        };
+    }));
 };
 
-// Update floor (allow room increase if not full; recalculate capacity)
-exports.updateFloor = async (id, data) => {
+const updateFloor = async (id, data) => {
     const floor = await Floor.findById(id);
-    if (!floor) throw new Error('Floor not found');
-    if (floor.status === 'FULL') throw new Error('Floor is full. Cannot update a full floor.');
+    if (!floor) {
+        throw new Error('Floor not found');
+    }
 
-    // If admin wants to add a room
-    if (data.addRoom) {
-        const roomCount = await Room.countDocuments({ floor_id: id });
-        const newRoomNumber = `${floor.floor_number}0${roomCount + 1}`;
-        const room = await Room.create({
-            room_number: newRoomNumber,
-            floor_id: floor._id,
-            total_beds: 2,
-            occupied_beds: 0
-        });
-        for (let b = 1; b <= 2; b++) {
-            await Bed.create({ bed_number: `B${b}`, room_id: room._id });
+    if (data.floor_number !== undefined) {
+        const nextFloorNumber = parseInteger(data.floor_number, 'floor_number');
+        if (nextFloorNumber === 0) {
+            throw new Error('floor_number must be greater than 0');
         }
-        floor.total_capacity = (roomCount + 1) * 2;
-        await floor.save();
-        return floor;
+
+        const duplicateFloor = await Floor.findOne({
+            floor_number: nextFloorNumber,
+            _id: { $ne: floor._id },
+        });
+
+        if (duplicateFloor) {
+            throw new Error(`Floor ${nextFloorNumber} already exists`);
+        }
+
+        floor.floor_number = nextFloorNumber;
     }
 
-    Object.assign(floor, data);
-    return await floor.save();
+    if (data.status) {
+        floor.status = data.status;
+    }
+
+    await floor.save();
+    return floor;
 };
 
-// Delete floor only if no occupied beds and no assigned students
-exports.deleteFloor = async (id) => {
+const deleteFloor = async (id) => {
     const floor = await Floor.findById(id);
-    if (!floor) throw new Error('Floor not found');
+    if (!floor) {
+        throw new Error('Floor not found');
+    }
 
     const rooms = await Room.find({ floor_id: id });
     for (const room of rooms) {
-        if (room.occupied_beds > 0) throw new Error('Cannot delete: floor has occupied beds');
+        if (room.occupied_beds > 0) {
+            throw new Error('Cannot delete: floor has occupied beds');
+        }
     }
 
-    const assigned = await Student.findOne({ room_id: { $in: rooms.map(r => r._id) } });
-    if (assigned) throw new Error('Cannot delete: students are assigned to this floor');
+    const assignedStudent = await Student.findOne({
+        room_id: { $in: rooms.map((room) => room._id) },
+    });
+    if (assignedStudent) {
+        throw new Error('Cannot delete: students are assigned to this floor');
+    }
 
-    // Delete beds, rooms, then floor
     for (const room of rooms) {
         await Bed.deleteMany({ room_id: room._id });
     }
+
     await Room.deleteMany({ floor_id: id });
     await Floor.findByIdAndDelete(id);
 
     return { message: 'Floor deleted successfully' };
 };
 
-// Auto-update floor status if all rooms are FULL
-exports.updateFloorStatus = async (floor_id) => {
-    const rooms = await Room.find({ floor_id });
-    if (rooms.length === 0) return;
-    const allFull = rooms.every(r => r.status === 'FULL');
-    await Floor.findByIdAndUpdate(floor_id, { status: allFull ? 'FULL' : 'AVAILABLE' });
+module.exports = {
+    createFloor,
+    getAllFloors,
+    updateFloor,
+    deleteFloor,
+    recalculateFloorCapacity,
+    updateFloorStatus,
 };

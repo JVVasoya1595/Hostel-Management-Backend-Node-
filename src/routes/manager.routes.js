@@ -1,31 +1,21 @@
 const router = require('express').Router();
 const controller = require('../controllers/manager.controller');
-const auth = require('../middleware/auth.middleware');
-const { authorize } = require('../middleware/role.middleware');
 
-// Public
-router.post('/register', controller.register);
-router.post('/login', controller.login);
+router.get('/profile/:data', controller.getProfile);
+router.get('/dashboard/:data', controller.getDashboard);
+router.get('/assignment/:data', controller.getAssignmentOverview);
+router.get('/students/:data', controller.getAllStudents);
+router.put('/students', controller.updateStudentInfo);
 
-// Protected — Manager only
-router.get('/profile', auth, authorize('MANAGER'), controller.getProfile);
-router.put('/profile', auth, authorize('MANAGER'), controller.updateProfile);
-router.get('/students', auth, authorize('MANAGER'), controller.getAllStudents);
+router.post('/check-in', controller.checkInStudent);
+router.post('/check-out', controller.checkOutStudent);
+router.get('/rooms/vacancy/:data', controller.getRoomVacancy);
 
-// Manager creates users
-router.post('/add/student', auth, authorize('MANAGER'), controller.createStudent);
-router.post('/add/parent', auth, authorize('MANAGER'), controller.createParent);
+router.get('/leave-requests/:data', controller.getLeaveRequests);
+router.get('/complaints/:data', controller.getComplaints);
+router.put('/complaints', controller.updateComplaint);
 
-// Manager gets user by ID
-router.get('/student/:id', auth, authorize('MANAGER'), controller.getStudentById);
-router.get('/parent/:id', auth, authorize('MANAGER'), controller.getParentById);
-
-// Manager updates user
-router.put('/student/:id', auth, authorize('MANAGER'), controller.updateStudent);
-router.put('/parent/:id', auth, authorize('MANAGER'), controller.updateParent);
-
-// Room assignment
-router.post('/assign-room', auth, authorize('MANAGER'), controller.assignRoom);
-router.get('/available-rooms', auth, authorize('MANAGER'), controller.getAvailableRooms);
+router.post('/attendance', controller.recordAttendance);
+router.get('/attendance/:data', controller.getAttendanceReport);
 
 module.exports = router;

@@ -1,135 +1,334 @@
-const mongoose = require('mongoose');
-const service = require('../services/adminAuth.service');
+const logger = require('../utils/logger');
+const { encryptData } = require('../utils/encryption');
+const { validateAdminRequest, validateAdminRequestBody } = require('../utils/validators/admin.validator');
+const adminService = require('../services/admin.service');
 
-exports.register = async (req, res) => {
+const sendEncryptedResponse = (res, status, message, payload) => {
+    return res.status(status).json({
+        message,
+        data: encryptData(payload),
+    });
+};
+
+const resolveErrorStatus = (error) => {
+    const message = String(error.message || '').toLowerCase();
+    if (message.includes('not found')) {
+        return 404;
+    }
+
+    return 400;
+};
+
+const handleActionError = (res, action, error) => {
+    logger.error(`${action} failed:`, error);
+    return res.status(resolveErrorStatus(error)).json({ message: error.message || 'SERVER ERROR' });
+};
+
+const runParamRequest = async (req, res, action, successMessage, handler) => {
     try {
-        const user = await service.register(req.body);
-        res.json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
+        logger.info(`${action} request received`);
+        const validation = await validateAdminRequest(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
+        }
+
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, 200, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-exports.login = async (req, res) => {
+const runBodyRequest = async (req, res, action, successMessage, handler, successStatus = 200) => {
     try {
-        const token = await service.login(req.body.email, req.body.password);
-        console.log(token);
-        res.json({ token });
-    } catch (err) {
-        res.status(401).json({ message: err.message });
+        logger.info(`${action} request received`);
+        const validation = await validateAdminRequestBody(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
+        }
+
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, successStatus, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-exports.getProfile = async (req, res) => {
-    try {
-        const profile = await service.getProfile(req.user.id);
-        if (!profile) return res.status(404).json({ message: "Admin not found" });
-        res.json(profile);
-    } catch (err) {
-        res.status(404).json({ message: err.message });
-    }
-};
+const getProfile = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get admin profile',
+    'Profile retrieved successfully',
+    ({ user }) => adminService.getProfile(user._id)
+);
 
-exports.getAllStudents = async (req, res) => {
-    try {
-        const students = await service.getAllStudents();
-        res.json(students);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getDashboard = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get admin dashboard',
+    'Dashboard overview retrieved successfully',
+    () => adminService.getDashboard()
+);
 
-exports.getAllManagers = async (req, res) => {
-    try {
-        const managers = await service.getAllManagers();
-        res.json(managers);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getAllManagers = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get all managers',
+    'Managers retrieved successfully',
+    () => adminService.getAllManagers()
+);
 
-exports.getAllParents = async (req, res) => {
-    try {
-        const parents = await service.getAllParents();
-        res.json(parents);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getAllStudents = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get all students',
+    'Students retrieved successfully',
+    () => adminService.getAllStudents()
+);
 
-// --- Admin creates users ---
-exports.createManager = async (req, res) => {
-    try {
-        const user = await service.createManager(req.body);
-        res.status(201).json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getAllParents = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get all parents',
+    'Parents retrieved successfully',
+    () => adminService.getAllParents()
+);
 
-exports.createStudent = async (req, res) => {
-    try {
-        const user = await service.createStudent(req.body);
-        res.status(201).json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getAllFloors = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get all floors',
+    'Floors retrieved successfully',
+    () => adminService.getAllFloors()
+);
 
-exports.createParent = async (req, res) => {
-    try {
-        const user = await service.createParent(req.body);
-        res.status(201).json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getAllRooms = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get all rooms',
+    'Rooms retrieved successfully',
+    () => adminService.getAllRooms()
+);
 
-// --- Admin gets user by ID ---
-exports.getManagerById = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.getManagerById(req.params.id);
-        if (!user) return res.status(404).json({ message: "Manager not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getAvailableRooms = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get available rooms',
+    'Available rooms retrieved successfully',
+    () => adminService.getAvailableRooms()
+);
 
-exports.updateManager = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.updateManager(req.params.id, req.body);
-        if (!user) return res.status(404).json({ message: "Manager not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-};
+const getFeePayments = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get fee payments',
+    'Fee payments retrieved successfully',
+    () => adminService.getFeePayments()
+);
 
-exports.getStudentById = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.getStudentById(req.params.id);
-        if (!user) return res.status(404).json({ message: "Student not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+const getNotifications = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get notifications',
+    'Notifications retrieved successfully',
+    ({ data }) => adminService.getNotifications(data.limit)
+);
 
-exports.getParentById = async (req, res) => {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id))
-        return res.status(400).json({ message: `Invalid ID format: "${req.params.id}". Provide a valid MongoDB ObjectId.` });
-    try {
-        const user = await service.getParentById(req.params.id);
-        if (!user) return res.status(404).json({ message: "Parent not found" });
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+const createManager = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create manager',
+    'Manager created successfully',
+    ({ data }) => adminService.createManager(data),
+    201
+);
+
+const updateManager = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update manager',
+    'Manager updated successfully',
+    ({ data }) => adminService.updateManager(data)
+);
+
+const deleteManager = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Delete manager',
+    'Manager deleted successfully',
+    ({ data }) => adminService.deleteManager(data)
+);
+
+const createStudent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create student',
+    'Student created successfully',
+    ({ data }) => adminService.createStudent(data),
+    201
+);
+
+const updateStudent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update student',
+    'Student updated successfully',
+    ({ data }) => adminService.updateStudent(data)
+);
+
+const deleteStudent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Delete student',
+    'Student deleted successfully',
+    ({ data }) => adminService.deleteStudent(data)
+);
+
+const createParent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create parent',
+    'Parent created successfully',
+    ({ data }) => adminService.createParent(data),
+    201
+);
+
+const updateParent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update parent',
+    'Parent updated successfully',
+    ({ data }) => adminService.updateParent(data)
+);
+
+const deleteParent = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Delete parent',
+    'Parent deleted successfully',
+    ({ data }) => adminService.deleteParent(data)
+);
+
+const createFloor = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create floor',
+    'Floor created successfully',
+    ({ data }) => adminService.createFloor(data),
+    201
+);
+
+const updateFloor = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update floor',
+    'Floor updated successfully',
+    ({ data }) => adminService.updateFloor(data)
+);
+
+const deleteFloor = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Delete floor',
+    'Floor deleted successfully',
+    ({ data }) => adminService.deleteFloor(data)
+);
+
+const createRoom = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create room',
+    'Room created successfully',
+    ({ data }) => adminService.createRoom(data),
+    201
+);
+
+const updateRoom = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update room',
+    'Room updated successfully',
+    ({ data }) => adminService.updateRoom(data)
+);
+
+const deleteRoom = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Delete room',
+    'Room deleted successfully',
+    ({ data }) => adminService.deleteRoom(data)
+);
+
+const assignRoom = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Assign room',
+    'Room allocated successfully',
+    ({ data }) => adminService.assignRoom(data)
+);
+
+const unassignRoom = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Unassign room',
+    'Room allocation removed successfully',
+    ({ data }) => adminService.unassignRoom(data)
+);
+
+const recordFeePayment = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Record fee payment',
+    'Fee payment recorded successfully',
+    ({ data }) => adminService.recordFeePayment(data)
+);
+
+const createNotification = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create notification',
+    'Notification created successfully',
+    ({ data, user }) => adminService.createNotification(data, user._id),
+    201
+);
+
+const deleteNotification = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Delete notification',
+    'Notification deleted successfully',
+    ({ data }) => adminService.deleteNotification(data)
+);
+
+module.exports = {
+    getProfile,
+    getDashboard,
+    getAllManagers,
+    getAllStudents,
+    getAllParents,
+    getAllFloors,
+    getAllRooms,
+    getAvailableRooms,
+    getFeePayments,
+    getNotifications,
+    createManager,
+    updateManager,
+    deleteManager,
+    createStudent,
+    updateStudent,
+    deleteStudent,
+    createParent,
+    updateParent,
+    deleteParent,
+    createFloor,
+    updateFloor,
+    deleteFloor,
+    createRoom,
+    updateRoom,
+    deleteRoom,
+    assignRoom,
+    unassignRoom,
+    recordFeePayment,
+    createNotification,
+    deleteNotification,
 };
