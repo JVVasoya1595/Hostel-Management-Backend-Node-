@@ -24,7 +24,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['ROOM_ALLOCATION', 'ANNOUNCEMENT', 'FEE_REMINDER', 'SYSTEM'],
+        enum: ['ROOM_ALLOCATION', 'ANNOUNCEMENT', 'FEE_REMINDER', 'LEAVE_REQUEST', 'COMPLAINT', 'SYSTEM'],
         default: 'ROOM_ALLOCATION',
     },
     recipient_role: {

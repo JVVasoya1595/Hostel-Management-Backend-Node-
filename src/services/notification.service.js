@@ -12,7 +12,7 @@ const createNotification = async (student_id, room_number, floor_number) => {
     });
 };
 
-const createAdminNotification = async ({
+const createRoleNotification = async ({
     title,
     message,
     type = 'ANNOUNCEMENT',
@@ -34,6 +34,8 @@ const createAdminNotification = async ({
     });
 };
 
+const createAdminNotification = async (payload) => createRoleNotification(payload);
+
 const getAllNotifications = async ({ limit } = {}) => {
     let query = Notification.find()
         .populate('student_id', 'name email')
@@ -53,6 +55,7 @@ const deleteNotification = async (notificationId) => {
 
 module.exports = {
     createNotification,
+    createRoleNotification,
     createAdminNotification,
     getAllNotifications,
     deleteNotification,

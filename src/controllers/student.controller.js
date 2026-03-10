@@ -1,138 +1,150 @@
 const logger = require('../utils/logger');
 const { encryptData } = require('../utils/encryption');
 const { validateStudentRequest, validateStudentRequestBody } = require('../utils/validators/student.validator');
-const Student = require('../models/student.model');
-const LeaveRequest = require('../models/leaveRequest.model');
-const Complaint = require('../models/complaint.model');
-const FeePayment = require('../models/feePayment.model');
+const studentService = require('../services/student.service');
 
-// Get student profile
-const getProfile = async (req, res) => {
+const sendEncryptedResponse = (res, status, message, payload) => {
+    return res.status(status).json({
+        message,
+        data: encryptData(payload),
+    });
+};
+
+const resolveErrorStatus = (error) => {
+    const message = String(error.message || '').toLowerCase();
+    if (message.includes('not found')) {
+        return 404;
+    }
+
+    return 400;
+};
+
+const handleActionError = (res, action, error) => {
+    logger.error(`${action} failed:`, error);
+    return res.status(resolveErrorStatus(error)).json({ message: error.message || 'SERVER ERROR' });
+};
+
+const runParamRequest = async (req, res, action, successMessage, handler) => {
     try {
-        logger.info("Get student profile request received");
-
-        const result = await validateStudentRequest(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
+        logger.info(`${action} request received`);
+        const validation = await validateStudentRequest(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
         }
 
-        const student = await Student.findById(result.user._id).select('-encryptedPassword');
-
-        logger.info("Student profile retrieved successfully");
-
-        return res.status(200).json({
-            message: "Profile retrieved successfully",
-            data: encryptData(student)
-        });
-
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, 200, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-// Submit leave request
-const submitLeaveRequest = async (req, res) => {
+const runBodyRequest = async (req, res, action, successMessage, handler, successStatus = 200) => {
     try {
-        logger.info("Submit leave request received");
-
-        const result = await validateStudentRequestBody(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
+        logger.info(`${action} request received`);
+        const validation = await validateStudentRequestBody(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
         }
 
-        const { leave_from, leave_to, reason, manager_id } = result.data;
-
-        if (!leave_from || !leave_to || !reason) {
-            return res.status(400).json({ message: "leave_from, leave_to and reason are required" });
-        }
-
-        const leaveRequest = await LeaveRequest.create({
-            student_id: result.user._id,
-            manager_id,
-            leave_from,
-            leave_to,
-            reason
-        });
-
-        logger.info("Leave request submitted successfully");
-
-        return res.status(200).json({
-            message: "Leave request submitted successfully",
-            data: encryptData(leaveRequest)
-        });
-
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, successStatus, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-// Submit complaint
-const submitComplaint = async (req, res) => {
-    try {
-        logger.info("Submit complaint request received");
+const getProfile = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student profile',
+    'Profile retrieved successfully',
+    ({ user }) => studentService.getProfile(user._id)
+);
 
-        const result = await validateStudentRequestBody(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
-        }
+const updateProfile = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update student profile',
+    'Profile updated successfully',
+    ({ user, data }) => studentService.updateProfile(user._id, data)
+);
 
-        const { title, description, category, manager_id } = result.data;
+const getDashboard = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student dashboard',
+    'Dashboard retrieved successfully',
+    ({ user }) => studentService.getDashboard(user._id)
+);
 
-        if (!title || !description) {
-            return res.status(400).json({ message: "Title and description are required" });
-        }
+const getRoomAssignment = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student room assignment',
+    'Room assignment retrieved successfully',
+    ({ user }) => studentService.buildRoomAssignment(user._id)
+);
 
-        const complaint = await Complaint.create({
-            student_id: result.user._id,
-            manager_id,
-            title,
-            description,
-            category
-        });
+const getLeaveRequests = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student leave requests',
+    'Leave requests retrieved successfully',
+    ({ user, data }) => studentService.getLeaveRequests(user._id, data)
+);
 
-        logger.info("Complaint submitted successfully");
+const submitLeaveRequest = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Submit leave request',
+    'Leave request submitted successfully',
+    ({ user, data }) => studentService.submitLeaveRequest(user._id, data),
+    201
+);
 
-        return res.status(200).json({
-            message: "Complaint submitted successfully",
-            data: encryptData(complaint)
-        });
+const getComplaints = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student complaints',
+    'Complaints retrieved successfully',
+    ({ user, data }) => studentService.getComplaints(user._id, data)
+);
 
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
-    }
-};
+const submitComplaint = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Submit complaint',
+    'Complaint submitted successfully',
+    ({ user, data }) => studentService.submitComplaint(user._id, data),
+    201
+);
 
-// Get my fee status
-const getFeeStatus = async (req, res) => {
-    try {
-        logger.info("Get fee status request received");
+const getFeeStatus = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student fee status',
+    'Fee status retrieved successfully',
+    ({ user, data }) => studentService.getFeeStatus(user._id, data)
+);
 
-        const result = await validateStudentRequest(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
-        }
-
-        const feePayments = await FeePayment.find({ student_id: result.user._id });
-
-        logger.info("Fee status retrieved successfully");
-
-        return res.status(200).json({
-            message: "Fee status retrieved successfully",
-            data: encryptData(feePayments)
-        });
-
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
-    }
-};
+const getHostelPolicies = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get hostel policies',
+    'Hostel policies retrieved successfully',
+    ({ data }) => studentService.getHostelPolicies(data)
+);
 
 module.exports = {
     getProfile,
+    updateProfile,
+    getDashboard,
+    getRoomAssignment,
+    getLeaveRequests,
     submitLeaveRequest,
+    getComplaints,
     submitComplaint,
-    getFeeStatus
+    getFeeStatus,
+    getHostelPolicies,
 };
