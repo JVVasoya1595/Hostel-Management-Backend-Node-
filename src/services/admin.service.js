@@ -2,12 +2,18 @@ const Admin = require('../models/admin.model');
 const Manager = require('../models/manager.model');
 const Student = require('../models/student.model');
 const Parent = require('../models/parent.model');
+const ParentCommunication = require('../models/parentCommunication.model');
 const Complaint = require('../models/complaint.model');
 const LeaveRequest = require('../models/leaveRequest.model');
 const FeePayment = require('../models/feePayment.model');
 const Notification = require('../models/notification.model');
 const Attendance = require('../models/attendance.model');
 const { encryptData } = require('../utils/encryption');
+const {
+    normalizeEmergencyContacts,
+    normalizeLinkedStudentIds,
+    normalizeOptionalText,
+} = require('../utils/parentProfile');
 const floorService = require('./floor.service');
 const roomService = require('./room.service');
 const notificationService = require('./notification.service');
@@ -35,6 +41,29 @@ const getManagerDetails = async (managerId) => sanitizeDocument(
         .populate('assigned_floor_ids', 'floor_number status total_capacity')
 );
 
+const getParentDetails = async (parentId) => sanitizeDocument(
+    await Parent.findById(parentId)
+        .select('-encryptedPassword')
+        .populate({
+            path: 'student_ids',
+            select: 'name email phone status hostel_status room_id bed_id',
+            populate: [
+                {
+                    path: 'room_id',
+                    select: 'room_number status floor_id',
+                    populate: {
+                        path: 'floor_id',
+                        select: 'floor_number status',
+                    },
+                },
+                {
+                    path: 'bed_id',
+                    select: 'bed_number is_occupied',
+                },
+            ],
+        })
+);
+
 const ensureUniqueEmail = async (email, currentId = null) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     if (!normalizedEmail) {
@@ -51,6 +80,43 @@ const ensureUniqueEmail = async (email, currentId = null) => {
     }
 
     return normalizedEmail;
+};
+
+const ensureStudentsExist = async (studentIds) => {
+    if (!studentIds || !studentIds.length) {
+        return [];
+    }
+
+    const count = await Student.countDocuments({ _id: { $in: studentIds } });
+    if (count !== studentIds.length) {
+        throw new Error('One or more student_ids are invalid');
+    }
+
+    return studentIds;
+};
+
+const prepareParentPayload = async (payload = {}) => {
+    const nextPayload = { ...payload };
+
+    if (nextPayload.relationship !== undefined) {
+        nextPayload.relationship = normalizeOptionalText(nextPayload.relationship, 'relationship');
+    }
+
+    if (nextPayload.address !== undefined) {
+        nextPayload.address = normalizeOptionalText(nextPayload.address, 'address');
+    }
+
+    if (nextPayload.emergency_contacts !== undefined) {
+        nextPayload.emergency_contacts = normalizeEmergencyContacts(nextPayload.emergency_contacts);
+    }
+
+    const linkedStudentIds = normalizeLinkedStudentIds(nextPayload);
+    delete nextPayload.student_id;
+    if (linkedStudentIds !== undefined) {
+        nextPayload.student_ids = await ensureStudentsExist(linkedStudentIds);
+    }
+
+    return nextPayload;
 };
 
 const createUser = async (Model, role, payload) => {
@@ -164,7 +230,27 @@ const getAllStudents = async () => sanitizeDocuments(
 );
 
 const getAllParents = async () => sanitizeDocuments(
-    await Parent.find().select('-encryptedPassword').sort({ createdAt: -1 })
+    await Parent.find()
+        .select('-encryptedPassword')
+        .populate({
+            path: 'student_ids',
+            select: 'name email phone status hostel_status room_id bed_id',
+            populate: [
+                {
+                    path: 'room_id',
+                    select: 'room_number status floor_id',
+                    populate: {
+                        path: 'floor_id',
+                        select: 'floor_number status',
+                    },
+                },
+                {
+                    path: 'bed_id',
+                    select: 'bed_number is_occupied',
+                },
+            ],
+        })
+        .sort({ createdAt: -1 })
 );
 
 const createManager = async (payload) => {
@@ -172,14 +258,20 @@ const createManager = async (payload) => {
     return getManagerDetails(manager._id);
 };
 const createStudent = async (payload) => createUser(Student, 'STUDENT', payload);
-const createParent = async (payload) => createUser(Parent, 'PARENT', payload);
+const createParent = async (payload) => {
+    const parent = await createUser(Parent, 'PARENT', await prepareParentPayload(payload));
+    return getParentDetails(parent._id);
+};
 
 const updateManager = async ({ manager_id, ...payload }) => {
     const manager = await updateUser(Manager, manager_id, payload, 'manager');
     return getManagerDetails(manager._id);
 };
 const updateStudent = async ({ student_id, ...payload }) => updateUser(Student, student_id, payload, 'student');
-const updateParent = async ({ parent_id, ...payload }) => updateUser(Parent, parent_id, payload, 'parent');
+const updateParent = async ({ parent_id, ...payload }) => {
+    const parent = await updateUser(Parent, parent_id, await prepareParentPayload(payload), 'parent');
+    return getParentDetails(parent._id);
+};
 
 const deleteManager = async ({ manager_id }) => {
     if (!manager_id) {
@@ -225,6 +317,8 @@ const deleteStudent = async ({ student_id }) => {
         FeePayment.deleteMany({ student_id }),
         Notification.deleteMany({ student_id }),
         Attendance.deleteMany({ student_id }),
+        ParentCommunication.deleteMany({ student_id }),
+        Parent.updateMany({ student_ids: student._id }, { $pull: { student_ids: student._id } }),
     ]);
 
     await student.deleteOne();
@@ -241,6 +335,7 @@ const deleteParent = async ({ parent_id }) => {
         throw new Error('Parent not found');
     }
 
+    await ParentCommunication.deleteMany({ parent_id });
     await parent.deleteOne();
     return sanitizeDocument(parent);
 };

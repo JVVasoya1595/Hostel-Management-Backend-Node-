@@ -1,136 +1,153 @@
 const logger = require('../utils/logger');
 const { encryptData } = require('../utils/encryption');
 const { validateParentRequest, validateParentRequestBody } = require('../utils/validators/parent.validator');
-const Parent = require('../models/parent.model');
-const Student = require('../models/student.model');
-const FeePayment = require('../models/feePayment.model');
-const Complaint = require('../models/complaint.model');
+const parentService = require('../services/parent.service');
 
-// Get parent profile
-const getProfile = async (req, res) => {
+const sendEncryptedResponse = (res, status, message, payload) => {
+    return res.status(status).json({
+        message,
+        data: encryptData(payload),
+    });
+};
+
+const resolveErrorStatus = (error) => {
+    const message = String(error.message || '').toLowerCase();
+    if (message.includes('not found')) {
+        return 404;
+    }
+
+    if (message.includes('not linked')) {
+        return 403;
+    }
+
+    return 400;
+};
+
+const handleActionError = (res, action, error) => {
+    logger.error(`${action} failed:`, error);
+    return res.status(resolveErrorStatus(error)).json({ message: error.message || 'SERVER ERROR' });
+};
+
+const runParamRequest = async (req, res, action, successMessage, handler) => {
     try {
-        logger.info("Get parent profile request received");
-
-        const result = await validateParentRequest(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
+        logger.info(`${action} request received`);
+        const validation = await validateParentRequest(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
         }
 
-        const parent = await Parent.findById(result.user._id).select('-encryptedPassword');
-
-        logger.info("Parent profile retrieved successfully");
-
-        return res.status(200).json({
-            message: "Profile retrieved successfully",
-            data: encryptData(parent)
-        });
-
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, 200, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-// Get child information
-const getChildInfo = async (req, res) => {
+const runBodyRequest = async (req, res, action, successMessage, handler, successStatus = 200) => {
     try {
-        logger.info("Get child info request received");
-
-        const result = await validateParentRequest(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
+        logger.info(`${action} request received`);
+        const validation = await validateParentRequestBody(req);
+        if (validation.error) {
+            return res.status(validation.status).json({ message: validation.message });
         }
 
-        const { student_id } = result.data;
-
-        if (!student_id) {
-            return res.status(400).json({ message: "student_id is required" });
-        }
-
-        const student = await Student.findById(student_id).select('-encryptedPassword');
-
-        if (!student) {
-            return res.status(404).json({ message: "Student not found" });
-        }
-
-        logger.info("Child info retrieved successfully");
-
-        return res.status(200).json({
-            message: "Child information retrieved successfully",
-            data: encryptData(student)
-        });
-
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
+        const payload = await handler(validation);
+        return sendEncryptedResponse(res, successStatus, successMessage, payload);
+    } catch (error) {
+        return handleActionError(res, action, error);
     }
 };
 
-// Get child fee status
-const getChildFeeStatus = async (req, res) => {
-    try {
-        logger.info("Get child fee status request received");
+const getProfile = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get parent profile',
+    'Profile retrieved successfully',
+    ({ user }) => parentService.getProfile(user._id)
+);
 
-        const result = await validateParentRequest(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
-        }
+const updateProfile = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update parent profile',
+    'Profile updated successfully',
+    ({ user, data }) => parentService.updateProfile(user._id, data)
+);
 
-        const { student_id } = result.data;
+const getDashboard = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get parent dashboard',
+    'Dashboard retrieved successfully',
+    ({ user }) => parentService.getDashboard(user._id)
+);
 
-        if (!student_id) {
-            return res.status(400).json({ message: "student_id is required" });
-        }
+const getStudents = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get linked students',
+    'Linked students retrieved successfully',
+    ({ user, data }) => parentService.getStudents(user._id, data)
+);
 
-        const feePayments = await FeePayment.find({ student_id });
+const getFeeHistory = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get child fee history',
+    'Fee history retrieved successfully',
+    ({ user, data }) => parentService.getFeeHistory(user._id, data)
+);
 
-        logger.info("Child fee status retrieved successfully");
+const getComplaints = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get child complaints',
+    'Complaints retrieved successfully',
+    ({ user, data }) => parentService.getComplaints(user._id, data)
+);
 
-        return res.status(200).json({
-            message: "Child fee status retrieved successfully",
-            data: encryptData(feePayments)
-        });
+const getCommunications = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get parent communications',
+    'Communications retrieved successfully',
+    ({ user, data }) => parentService.getCommunications(user._id, data)
+);
 
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
-    }
-};
+const createCommunication = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Create parent communication',
+    'Communication submitted successfully',
+    ({ user, data }) => parentService.createCommunication(user._id, data),
+    201
+);
 
-// Get child complaints
-const getChildComplaints = async (req, res) => {
-    try {
-        logger.info("Get child complaints request received");
+const getEmergencyContacts = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get emergency contacts',
+    'Emergency contacts retrieved successfully',
+    ({ user }) => parentService.getEmergencyContacts(user._id)
+);
 
-        const result = await validateParentRequest(req, res);
-        if (result.error) {
-            return res.status(result.status).json({ message: result.message });
-        }
-
-        const { student_id } = result.data;
-
-        if (!student_id) {
-            return res.status(400).json({ message: "student_id is required" });
-        }
-
-        const complaints = await Complaint.find({ student_id }).populate('manager_id', '-encryptedPassword');
-
-        logger.info("Child complaints retrieved successfully");
-
-        return res.status(200).json({
-            message: "Child complaints retrieved successfully",
-            data: encryptData(complaints)
-        });
-
-    } catch (err) {
-        logger.error(err);
-        return res.status(500).json({ message: "SERVER ERROR" });
-    }
-};
+const updateEmergencyContacts = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update emergency contacts',
+    'Emergency contacts updated successfully',
+    ({ user, data }) => parentService.updateEmergencyContacts(user._id, data)
+);
 
 module.exports = {
     getProfile,
-    getChildInfo,
-    getChildFeeStatus,
-    getChildComplaints
+    updateProfile,
+    getDashboard,
+    getStudents,
+    getFeeHistory,
+    getComplaints,
+    getCommunications,
+    createCommunication,
+    getEmergencyContacts,
+    updateEmergencyContacts,
 };
