@@ -1,348 +1,259 @@
-# 🏨 HostelCore – Complete Hostel Management Backend System
+# HostelCore Backend
 
-HostelCore is a secure, scalable, and role-based Hostel Management Backend built using Node.js, Express.js, and MongoDB. It provides full backend functionality for managing hostel operations including admins, managers, students, parents, floors, rooms, and bed allocations with strong encryption and authentication.
+HostelCore Backend is a Node.js, Express, and MongoDB API for managing hostel operations with role-based modules for admins, managers, students, and parents.
 
----
+This repository is the backend only. It currently includes the core data models, encrypted request handling, dashboard and workflow endpoints, and room/floor allocation logic.
 
-# 📌 Table of Contents
+## Status
 
-- Project Overview
-- Features
-- System Architecture
-- Tech Stack
-- Installation Guide
-- Environment Variables
-- Project Structure
-- Database Design
-- Authentication & Encryption
-- API Endpoints
-- Role Permissions
-- Security Features
-- Future Improvements
-- Author
+- Phase 1: Backend foundation completed
+- Phase 2.1: Admin module completed
+- Phase 2.2: Manager module completed
+- Phase 2.3: Student module completed
+- Phase 2.4: Parent module completed
+- Phase 2.5: Operational modules partially covered through notifications, fees, leave requests, complaints, and attendance
+- Phase 3 and Phase 4: Not yet implemented in this repository
 
----
+## Implemented Modules
 
-# 📖 Project Overview
+### Admin
 
-This system is designed to manage hostel operations digitally with secure role-based access control.
+- Dashboard and profile
+- Manager, student, and parent CRUD
+- Floor and room management
+- Bed allocation and unallocation
+- Fee recording and summaries
+- Notification management
 
-The system supports 4 types of users:
+### Manager
 
-- 👑 Admin
-- 🧑‍💼 Manager
-- 🎓 Student
-- 👨‍👩‍👧 Parent
+- Dashboard and assignment overview
+- Managed student listing and updates
+- Student check-in and check-out
+- Room vacancy tracking
+- Complaint handling
+- Leave request tracking
+- Attendance recording and reporting
 
-Each role has different permissions and separate encryption logic.
+### Student
 
----
+- Dashboard and profile updates
+- Room assignment view
+- Leave request submission and history
+- Complaint submission and history
+- Fee tracking
+- Hostel policy access
 
-# 🚀 Features
+### Parent
 
-## 👑 Admin Features
-- Create floors
-- Create rooms inside floors
-- Define number of beds in rooms
-- Manage managers
-- Full system control
+- Dashboard and profile updates
+- Linked student status tracking
+- Fee history access
+- Complaint visibility
+- Communication portal
+- Emergency contact management
 
-## 🧑‍💼 Manager Features
-- Assign rooms to students
-- View available rooms
-- Manage student records
-- Monitor hostel occupancy
+## Tech Stack
 
-## 🎓 Student Features
-- Secure login
-- View assigned room
-- View hostel details
+- Node.js
+- Express
+- MongoDB
+- Mongoose
+- JWT
+- CryptoJS
+- dotenv
+- nodemon
 
-## 👨‍👩‍👧 Parent Features
-- Secure login
-- View student's room details
-- Monitor student hostel status
+## Project Structure
 
----
-
-# 🧠 System Architecture
-
-
-Client (Frontend)
-│
-▼
-Express Server (Node.js)
-│
-▼
-Controllers
-│
-▼
-Services Layer
-│
-▼
-Models
-│
-▼
-MongoDB Database
-
-
----
-
-# 🛠 Tech Stack
-
-Backend Framework: Node.js, Express.js  
-Database: MongoDB  
-ODM: Mongoose  
-Authentication: JWT  
-Encryption: bcrypt  
-Environment Config: dotenv  
-Development Tool: nodemon  
-
----
-
-# ⚙️ Installation Guide
-
-## Step 1: Clone Repository
-
-```bash
-git clone https://github.com/yourusername/Hostel_Core.git
-cd Hostel_Core
-Step 2: Install Dependencies
-npm install
-Step 3: Create Environment File
-
-Create .env file in root folder:
-
-PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/hostelcore
-JWT_SECRET=hostelcore_secret_key
-Step 4: Run Server
-
-Development mode:
-
-npm run dev
-
-Production mode:
-
-npm start
-
-Server runs on:
-
-http://localhost:5000
-📁 Complete Project Structure
-Hostel_Core/
-│
+```text
+hostelcore-backend/
 ├── server.js
 ├── package.json
-├── .env
-│
+├── .env.example
 ├── src/
 │   ├── app.js
-│   │
 │   ├── config/
-│   │   └── db.js
-│   │
 │   ├── controllers/
-│   │   ├── admin.controller.js
-│   │   ├── manager.controller.js
-│   │   ├── student.controller.js
-│   │   ├── parent.controller.js
-│   │   ├── floor.controller.js
-│   │   └── room.controller.js
-│   │
-│   ├── models/
-│   │   ├── admin.model.js
-│   │   ├── manager.model.js
-│   │   ├── student.model.js
-│   │   ├── parent.model.js
-│   │   ├── floor.model.js
-│   │   ├── room.model.js
-│   │   ├── bed.model.js
-│   │   └── notification.model.js
-│   │
-│   ├── routes/
-│   │   ├── admin.routes.js
-│   │   ├── manager.routes.js
-│   │   ├── student.routes.js
-│   │   ├── parent.routes.js
-│   │   ├── floor.routes.js
-│   │   └── room.routes.js
-│   │
+│   ├── data/
 │   ├── middleware/
-│   │   ├── auth.middleware.js
-│   │   └── role.middleware.js
-│   │
+│   ├── models/
+│   ├── routes/
+│   ├── services/
 │   └── utils/
-│       └── encryption/
-│           ├── admin.encrypt.js
-│           ├── manager.encrypt.js
-│           ├── student.encrypt.js
-│           └── parent.encrypt.js
-🗄 Database Design
-Admin Schema
-name
-email
-password
-role
-createdAt
-Manager Schema
-name
-email
-password
-assignedFloor
-Student Schema
-name
-email
-password
-roomId
-bedId
-parentId
-Parent Schema
-name
-email
-password
-studentId
-Floor Schema
-floorNumber
-rooms[]
-Room Schema
-roomNumber
-floorId
-totalBeds
-availableBeds
-Bed Schema
-bedNumber
-roomId
-studentId
-status
-🔐 Authentication Flow
+```
 
-Step 1: User sends login request
-Step 2: Password verified using bcrypt
-Step 3: JWT token generated
-Step 4: Token sent to client
-Step 5: Token verified on protected routes
+## Environment Variables
 
-🔒 Encryption System
+Create a local `.env` file with:
 
-Each role has separate encryption logic for high security:
+```env
+PORT=5010
+MONGO_URI=mongodb://localhost:27017/hostelcore
+JWT_SECRET=replace-with-a-secure-random-secret
+ENCRYPTION_SECRET=replace-with-a-secure-random-encryption-secret
+```
 
-admin.encrypt.js
-manager.encrypt.js
-student.encrypt.js
-parent.encrypt.js
+## Installation
 
-Encryption process:
+```bash
+npm install
+```
 
-Password → bcrypt hash → store in database
-Login → compare hash → generate JWT
+## Running the Server
 
-📡 API Endpoints
-Admin APIs
+Development:
 
-Create Admin
+```bash
+npm run dev
+```
 
-POST /api/admin/register
+Production:
 
-Admin Login
+```bash
+npm start
+```
 
-POST /api/admin/login
+Health check:
 
-Create Floor
+```http
+GET /api/health
+```
 
-POST /api/floor/create
+## API Design
 
-Create Room
+All role module endpoints use encrypted payload exchange.
 
-POST /api/room/create
-Manager APIs
+- `GET` routes expect encrypted request data in the `:data` route parameter
+- `POST`, `PUT`, and `DELETE` routes expect a JSON body in this shape:
 
-Manager Login
+```json
+{
+  "data": "<encrypted-payload>"
+}
+```
 
-POST /api/manager/login
+Responses usually follow this shape:
 
-Assign Room
+```json
+{
+  "message": "Success message",
+  "data": "<encrypted-response-payload>"
+}
+```
 
-POST /api/manager/assign-room
-Student APIs
+## Important Auth Note
 
-Student Login
+Authentication helper services exist in:
 
-POST /api/student/login
+- `src/services/adminAuth.service.js`
+- `src/services/managerAuth.service.js`
+- `src/services/studentAuth.service.js`
+- `src/services/parentAuth.service.js`
 
-Get Room Info
+At the moment, login and register routes are not exposed in `src/routes`. The current API surface is centered on protected module endpoints and encrypted request validation.
 
-GET /api/student/room
-Parent APIs
+## Route Summary
 
-Parent Login
+### Core
 
-POST /api/parent/login
+- `GET /api/health`
 
-View Student Info
+### Admin
 
-GET /api/parent/student
-👮 Role-Based Access Control
-Role	Permissions
-Admin	Full Access
-Manager	Assign Rooms
-Student	View Room
-Parent	View Student
-🛡 Security Features
+- `/api/admin/profile/:data`
+- `/api/admin/dashboard/:data`
+- `/api/admin/managers`
+- `/api/admin/students`
+- `/api/admin/parents`
+- `/api/admin/floors`
+- `/api/admin/rooms`
+- `/api/admin/room-allocation`
+- `/api/admin/fees`
+- `/api/admin/notifications`
 
-bcrypt password hashing
+### Manager
 
-JWT authentication
+- `/api/manager/profile/:data`
+- `/api/manager/dashboard/:data`
+- `/api/manager/assignment/:data`
+- `/api/manager/students`
+- `/api/manager/check-in`
+- `/api/manager/check-out`
+- `/api/manager/rooms/vacancy/:data`
+- `/api/manager/leave-requests/:data`
+- `/api/manager/complaints`
+- `/api/manager/attendance`
 
-Role-based authorization
+### Student
 
-Protected routes
+- `/api/student/profile`
+- `/api/student/dashboard/:data`
+- `/api/student/room-assignment/:data`
+- `/api/student/leave-requests`
+- `/api/student/complaints`
+- `/api/student/fees/:data`
+- `/api/student/policies/:data`
 
-Environment variables
+### Parent
 
-Separate encryption per role
+- `/api/parent/profile`
+- `/api/parent/dashboard/:data`
+- `/api/parent/students/:data`
+- `/api/parent/fees/:data`
+- `/api/parent/complaints/:data`
+- `/api/parent/communications`
+- `/api/parent/emergency-contacts`
 
-🧪 Testing
+### Utility Modules
 
-Use Postman
+- `/api/floor/*`
+- `/api/room/*`
 
-Example:
+## Data Model Highlights
 
-POST http://localhost:5000/api/admin/login
-POST http://localhost:5000/api/manager/login
-POST http://localhost:5000/api/student/login
-POST http://localhost:5000/api/parent/login
-📈 Future Improvements
+Key entities:
 
-Frontend Integration
+- Admin
+- Manager
+- Student
+- Parent
+- Floor
+- Room
+- Bed
+- Attendance
+- LeaveRequest
+- Complaint
+- FeePayment
+- Notification
+- ParentCommunication
 
-Dashboard UI
+Parent access is scoped through `parent.student_ids`. If a parent is not linked to any students, parent dashboard and child-access endpoints will return no accessible student records.
 
-Email Notifications
+## Logging
 
-Automatic Room Allocation
+Application logs are written to:
 
-Analytics Dashboard
+```text
+logs/app.log
+```
 
-Mobile App Support
+## Current Limitations
 
-👨‍💻 Author
+- No public login/register route layer yet
+- No frontend in this repository
+- No payment gateway integration yet
+- No automated test suite yet
+- No deployment, monitoring, or backup pipeline yet
 
-Jenil Vasoya
-Backend Developer
-Node.js | MongoDB | MERN Stack
+## Next Recommended Work
 
-⭐ Support
+- Phase 2.5 operational endpoint expansion
+- Public auth route layer
+- Seed data and automated integration tests
+- Frontend dashboards
+- Production deployment and monitoring
 
-If you like this project, give it a star on GitHub ⭐
+## License
 
-📜 License
-
-ISC License
-
-🎯 Conclusion
-
-HostelCore provides a complete backend solution for hostel management with secure authentication, encryption, and role-based access. It is scalable, modular, and production-ready.
-
-
----
+ISC
