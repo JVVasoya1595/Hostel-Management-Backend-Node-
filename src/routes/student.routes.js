@@ -14,6 +14,8 @@ router.get('/complaints/:data', controller.getComplaints);
 router.post('/complaints', controller.submitComplaint);
 
 router.get('/fees/:data', controller.getFeeStatus);
+router.get('/notifications/:data', controller.getNotifications);
+router.put('/notifications/read', controller.markNotificationsRead);
 router.get('/policies/:data', controller.getHostelPolicies);
 
 // Backward-compatible aliases for earlier Phase 1 student routes.

@@ -114,6 +114,22 @@ const getCommunications = async (req, res) => runParamRequest(
     ({ user, data }) => parentService.getCommunications(user._id, data)
 );
 
+const getNotifications = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get parent notifications',
+    'Notifications retrieved successfully',
+    ({ user, data }) => parentService.getNotifications(user._id, data)
+);
+
+const markNotificationsRead = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Mark parent notifications read',
+    'Notifications marked as read successfully',
+    ({ user, data }) => parentService.markNotificationsRead(user._id, data)
+);
+
 const createCommunication = async (req, res) => runBodyRequest(
     req,
     res,
@@ -147,6 +163,8 @@ module.exports = {
     getFeeHistory,
     getComplaints,
     getCommunications,
+    getNotifications,
+    markNotificationsRead,
     createCommunication,
     getEmergencyContacts,
     updateEmergencyContacts,

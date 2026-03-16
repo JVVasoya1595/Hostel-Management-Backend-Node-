@@ -4,10 +4,28 @@ const logger = require('../logger');
 
 const normalizeRole = (value) => String(value || '').trim().toLowerCase();
 
+const safeDecodeURIComponent = (value) => {
+    if (typeof value !== 'string') {
+        return value;
+    }
+
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+};
+
+const getJwtSecretForRole = (role) => {
+    const normalizedRole = normalizeRole(role);
+    const envKey = `${normalizedRole.toUpperCase()}_JWT_SECRET`;
+    return process.env[envKey] || process.env.JWT_SECRET;
+};
+
 const decodeNestedPayload = (cipherText) => {
-    const outerPayload = decryptData(cipherText);
+    const outerPayload = decryptData(safeDecodeURIComponent(cipherText));
     if (outerPayload && typeof outerPayload === 'object' && outerPayload.data) {
-        return decryptData(outerPayload.data);
+        return decryptData(safeDecodeURIComponent(outerPayload.data));
     }
 
     return outerPayload;
@@ -18,7 +36,7 @@ const decodeRequestParams = (req) => {
         throw new Error('Missing encrypted request data');
     }
 
-    return decodeNestedPayload(req.params.data);
+    return decodeNestedPayload(safeDecodeURIComponent(req.params.data));
 };
 
 const decodeRequestBody = (req) => {
@@ -53,9 +71,14 @@ const validateEncryptedRequest = async ({
             return { error: true, status: 400, message: 'Missing authentication data' };
         }
 
+        const jwtSecret = getJwtSecretForRole(expectedRole);
+        if (!jwtSecret) {
+            return { error: true, status: 500, message: 'Server Error' };
+        }
+
         let decodedToken;
         try {
-            decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+            decodedToken = jwt.verify(token, jwtSecret);
         } catch (error) {
             logger.warn('Invalid or expired token');
             return { error: true, status: 401, message: 'Unauthorized' };
@@ -85,6 +108,24 @@ const validateEncryptedRequest = async ({
         if (normalizedEmail && storedEmail && normalizedEmail !== storedEmail) {
             logger.warn('Email mismatch during request validation');
             return { error: true, status: 403, message: 'Unauthorized' };
+        }
+
+        // Optional phone/mobile verification if the client supplies it.
+        const requestedPhone = String(requestData.mobile_no || requestData.phone || '').trim();
+        if (requestedPhone) {
+            const storedPhone = String(user.mobile_no || user.phone || '').trim();
+            if (storedPhone && requestedPhone !== storedPhone) {
+                logger.warn('Phone mismatch during request validation');
+                return { error: true, status: 403, message: 'Unauthorized' };
+            }
+
+            if (decodedToken.mobile_no || decodedToken.phone) {
+                const tokenPhone = String(decodedToken.mobile_no || decodedToken.phone || '').trim();
+                if (tokenPhone && requestedPhone !== tokenPhone) {
+                    logger.warn('Token phone mismatch during request validation');
+                    return { error: true, status: 403, message: 'Unauthorized' };
+                }
+            }
         }
 
         if (decodedToken.email) {

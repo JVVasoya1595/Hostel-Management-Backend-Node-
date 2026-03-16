@@ -123,7 +123,47 @@ const getFeePayments = async (req, res) => runParamRequest(
     res,
     'Get fee payments',
     'Fee payments retrieved successfully',
-    () => adminService.getFeePayments()
+    ({ data }) => adminService.getFeePayments(data)
+);
+
+const getLeaveRequests = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get leave requests',
+    'Leave requests retrieved successfully',
+    ({ data }) => adminService.getLeaveRequests(data)
+);
+
+const updateLeaveRequest = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update leave request',
+    'Leave request updated successfully',
+    ({ data, user }) => adminService.updateLeaveRequest(data, user._id)
+);
+
+const getComplaints = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get complaints',
+    'Complaints retrieved successfully',
+    ({ data }) => adminService.getComplaints(data)
+);
+
+const updateComplaint = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update complaint',
+    'Complaint updated successfully',
+    ({ data, user }) => adminService.updateComplaint(data, user._id)
+);
+
+const sendFeeReminder = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Send fee reminder',
+    'Fee reminder sent successfully',
+    ({ data, user }) => adminService.sendFeeReminder(data, user._id)
 );
 
 const getNotifications = async (req, res) => runParamRequest(
@@ -131,7 +171,15 @@ const getNotifications = async (req, res) => runParamRequest(
     res,
     'Get notifications',
     'Notifications retrieved successfully',
-    ({ data }) => adminService.getNotifications(data.limit)
+    ({ data, user }) => adminService.getNotifications(data, user._id)
+);
+
+const markNotificationsRead = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Mark notifications read',
+    'Notifications marked as read successfully',
+    ({ data, user }) => adminService.markNotificationsRead(data, user._id)
 );
 
 const createManager = async (req, res) => runBodyRequest(
@@ -300,6 +348,30 @@ const deleteNotification = async (req, res) => runBodyRequest(
     ({ data }) => adminService.deleteNotification(data)
 );
 
+const getOccupancyReport = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get occupancy report',
+    'Occupancy report retrieved successfully',
+    ({ data }) => adminService.getOccupancyReport(data)
+);
+
+const getFinancialReport = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get financial report',
+    'Financial report retrieved successfully',
+    ({ data }) => adminService.getFinancialReport(data)
+);
+
+const getAttendanceReport = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get attendance report',
+    'Attendance report retrieved successfully',
+    ({ data }) => adminService.getAttendanceReport(data)
+);
+
 module.exports = {
     getProfile,
     getDashboard,
@@ -310,7 +382,12 @@ module.exports = {
     getAllRooms,
     getAvailableRooms,
     getFeePayments,
+    getLeaveRequests,
+    getComplaints,
     getNotifications,
+    getOccupancyReport,
+    getFinancialReport,
+    getAttendanceReport,
     createManager,
     updateManager,
     deleteManager,
@@ -329,6 +406,10 @@ module.exports = {
     assignRoom,
     unassignRoom,
     recordFeePayment,
+    updateLeaveRequest,
+    updateComplaint,
+    sendFeeReminder,
     createNotification,
+    markNotificationsRead,
     deleteNotification,
 };

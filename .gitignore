@@ -1,6 +1,8 @@
 node_modules/
 logs/
 .env
+.npm-cache/
+_tmp_pdf_text*.txt
 
 npm-debug.log*
 yarn-debug.log*

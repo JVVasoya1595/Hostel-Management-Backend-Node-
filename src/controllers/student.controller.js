@@ -128,6 +128,22 @@ const getFeeStatus = async (req, res) => runParamRequest(
     ({ user, data }) => studentService.getFeeStatus(user._id, data)
 );
 
+const getNotifications = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get student notifications',
+    'Notifications retrieved successfully',
+    ({ user, data }) => studentService.getNotifications(user._id, data)
+);
+
+const markNotificationsRead = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Mark student notifications read',
+    'Notifications marked as read successfully',
+    ({ user, data }) => studentService.markNotificationsRead(user._id, data)
+);
+
 const getHostelPolicies = async (req, res) => runParamRequest(
     req,
     res,
@@ -146,5 +162,7 @@ module.exports = {
     getComplaints,
     submitComplaint,
     getFeeStatus,
+    getNotifications,
+    markNotificationsRead,
     getHostelPolicies,
 };

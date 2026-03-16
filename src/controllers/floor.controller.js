@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const service = require('../services/floor.service');
+const { runParamRequest } = require('./_encryptedActorController');
 
 exports.createFloor = async (req, res) => {
     const { floor_number } = req.body;
@@ -14,12 +15,14 @@ exports.createFloor = async (req, res) => {
 };
 
 exports.getAllFloors = async (req, res) => {
-    try {
-        const floors = await service.getAllFloors();
-        res.json(floors);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+    return runParamRequest({
+        req,
+        res,
+        action: 'Get floors',
+        successMessage: 'Floors fetched successfully',
+        allowedRoles: ['admin', 'manager', 'warden'],
+        handler: async () => service.getAllFloors(),
+    });
 };
 
 exports.updateFloor = async (req, res) => {

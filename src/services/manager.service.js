@@ -7,6 +7,7 @@ const Complaint = require('../models/complaint.model');
 const LeaveRequest = require('../models/leaveRequest.model');
 const Attendance = require('../models/attendance.model');
 const roomService = require('./room.service');
+const notificationService = require('./notification.service');
 
 const sanitizeDocument = (document) => {
     if (!document) {
@@ -140,6 +141,25 @@ const ensureManagedStudent = async (scope, studentId, { requireRoom = true } = {
     return student;
 };
 
+const notifyManagedStudentAndParents = async ({
+    scope,
+    student_id,
+    title,
+    message,
+    type,
+    delivery_channels = ['IN_APP'],
+}) => {
+    const student = await ensureManagedStudent(scope, student_id, { requireRoom: false });
+    await notificationService.notifyStudentAndParents({
+        student,
+        title,
+        message,
+        type,
+        created_by: null,
+        delivery_channels,
+    });
+};
+
 const buildScopeSummary = async (scope) => {
     const managedRoomFilter = { room_id: { $in: scope.roomIds } };
     const [totalBeds, occupiedBeds, totalStudents, checkedInStudents, checkedOutStudents, pendingCheckInStudents] = await Promise.all([
@@ -209,6 +229,7 @@ const getDashboard = async (managerId) => {
         absentToday,
         onLeaveToday,
         markedToday,
+        recentNotifications,
     ] = await Promise.all([
         buildScopeSummary(scope),
         Complaint.countDocuments({ manager_id: managerId }),
@@ -223,6 +244,7 @@ const getDashboard = async (managerId) => {
         Attendance.countDocuments({ manager_id: managerId, date: { $gte: todayStart, $lt: todayEnd }, status: 'ABSENT' }),
         Attendance.countDocuments({ manager_id: managerId, date: { $gte: todayStart, $lt: todayEnd }, status: 'ON_LEAVE' }),
         Attendance.countDocuments({ manager_id: managerId, date: { $gte: todayStart, $lt: todayEnd } }),
+        notificationService.getNotificationsForRole('MANAGER', { user_id: managerId, limit: 5 }),
     ]);
 
     return {
@@ -248,6 +270,7 @@ const getDashboard = async (managerId) => {
             on_leave: onLeaveToday,
             unmarked: Math.max(scopeSummary.students.checked_in - markedToday, 0),
         },
+        recent_notifications: recentNotifications,
     };
 };
 
@@ -493,7 +516,12 @@ const getComplaints = async (managerId, filters = {}) => {
 };
 
 const updateComplaint = async (managerId, payload) => {
-    const { complaint_id, status, comments } = payload;
+    const {
+        complaint_id,
+        status,
+        comments,
+        delivery_channels = ['IN_APP'],
+    } = payload;
     if (!complaint_id) {
         throw new Error('complaint_id is required');
     }
@@ -518,6 +546,20 @@ const updateComplaint = async (managerId, payload) => {
     }
 
     await complaint.save();
+
+    if (status !== undefined || comments !== undefined) {
+        const scope = await getManagerScope(managerId);
+        const commentSuffix = comments ? ` ${comments}` : '';
+        await notifyManagedStudentAndParents({
+            scope,
+            student_id: complaint.student_id,
+            title: 'Complaint status updated',
+            message: `Your complaint has been marked ${complaint.status.toLowerCase()}.${commentSuffix}`,
+            type: 'COMPLAINT',
+            delivery_channels,
+        });
+    }
+
     return Complaint.findById(complaint._id).populate('student_id', 'name email phone hostel_status status');
 };
 
@@ -528,11 +570,60 @@ const getLeaveRequests = async (managerId, filters = {}) => {
         query.status = String(filters.status).trim().toUpperCase();
     }
 
+    if (filters.leave_request_id) {
+        query._id = filters.leave_request_id;
+    }
+
     const leaveRequests = await LeaveRequest.find(query)
         .populate('student_id', 'name email phone hostel_status status')
         .sort({ createdAt: -1 });
 
     return leaveRequests;
+};
+
+const updateLeaveRequest = async (managerId, payload) => {
+    const { leave_request_id, status, remarks, delivery_channels = ['IN_APP'] } = payload;
+    if (!leave_request_id) {
+        throw new Error('leave_request_id is required');
+    }
+
+    const leaveRequest = await LeaveRequest.findOne({ _id: leave_request_id, manager_id: managerId });
+    if (!leaveRequest) {
+        throw new Error('Leave request not found');
+    }
+
+    let nextStatus = leaveRequest.status;
+    if (status !== undefined) {
+        nextStatus = String(status).trim().toUpperCase();
+        if (!['PENDING', 'APPROVED', 'REJECTED'].includes(nextStatus)) {
+            throw new Error('Invalid leave request status');
+        }
+
+        leaveRequest.status = nextStatus;
+        leaveRequest.approval_date = nextStatus === 'PENDING' ? null : new Date();
+    }
+
+    if (remarks !== undefined) {
+        leaveRequest.remarks = remarks;
+    }
+
+    await leaveRequest.save();
+
+    if (status !== undefined) {
+        const scope = await getManagerScope(managerId);
+        await notifyManagedStudentAndParents({
+            scope,
+            student_id: leaveRequest.student_id,
+            title: 'Leave request updated',
+            message: `Your leave request has been ${nextStatus.toLowerCase()}.`,
+            type: 'LEAVE_REQUEST',
+            delivery_channels,
+        });
+    }
+
+    return LeaveRequest.findById(leaveRequest._id)
+        .populate('student_id', 'name email phone hostel_status status')
+        .populate('manager_id', 'name email phone building_name');
 };
 
 const normalizeAttendancePayload = (payload) => {
@@ -651,6 +742,20 @@ const getAttendanceReport = async (managerId, filters = {}) => {
     };
 };
 
+const getNotifications = async (managerId, filters = {}) => notificationService.getNotificationsForRole(
+    'MANAGER',
+    {
+        ...filters,
+        user_id: managerId,
+    }
+);
+
+const markNotificationsRead = async (managerId, payload) => notificationService.markNotificationsRead({
+    ...payload,
+    recipient_role: 'MANAGER',
+    user_id: managerId,
+});
+
 module.exports = {
     getProfile,
     getDashboard,
@@ -663,6 +768,9 @@ module.exports = {
     getComplaints,
     updateComplaint,
     getLeaveRequests,
+    updateLeaveRequest,
     recordAttendance,
     getAttendanceReport,
+    getNotifications,
+    markNotificationsRead,
 };

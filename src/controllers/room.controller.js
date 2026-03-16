@@ -1,4 +1,5 @@
 const service = require('../services/room.service');
+const { runParamRequest } = require('./_encryptedActorController');
 
 exports.createRoom = async (req, res) => {
     try {
@@ -11,19 +12,23 @@ exports.createRoom = async (req, res) => {
 };
 
 exports.getAllRooms = async (req, res) => {
-    try {
-        const rooms = await service.getAllRooms();
-        res.json(rooms);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+    return runParamRequest({
+        req,
+        res,
+        action: 'Get rooms',
+        successMessage: 'Rooms fetched successfully',
+        allowedRoles: ['admin', 'manager', 'warden'],
+        handler: async () => service.getAllRooms(),
+    });
 };
 
 exports.getAvailableRooms = async (req, res) => {
-    try {
-        const rooms = await service.getAvailableRooms();
-        res.json(rooms);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+    return runParamRequest({
+        req,
+        res,
+        action: 'Get available rooms',
+        successMessage: 'Available rooms fetched successfully',
+        allowedRoles: ['admin', 'manager', 'warden'],
+        handler: async () => service.getAvailableRooms(),
+    });
 };

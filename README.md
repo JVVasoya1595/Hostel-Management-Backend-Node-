@@ -144,14 +144,7 @@ Responses usually follow this shape:
 
 ## Important Auth Note
 
-Authentication helper services exist in:
-
-- `src/services/adminAuth.service.js`
-- `src/services/managerAuth.service.js`
-- `src/services/studentAuth.service.js`
-- `src/services/parentAuth.service.js`
-
-At the moment, login and register routes are not exposed in `src/routes`. The current API surface is centered on protected module endpoints and encrypted request validation.
+Login and registration routes are exposed under `GET/POST /api/auth/*` (admin/manager/warden/student/parent). The rest of the API surface is centered on protected module endpoints and encrypted request validation.
 
 ## Route Summary
 

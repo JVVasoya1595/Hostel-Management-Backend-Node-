@@ -13,6 +13,8 @@ router.get('/complaints/:data', controller.getComplaints);
 
 router.get('/communications/:data', controller.getCommunications);
 router.post('/communications', controller.createCommunication);
+router.get('/notifications/:data', controller.getNotifications);
+router.put('/notifications/read', controller.markNotificationsRead);
 
 router.get('/emergency-contacts/:data', controller.getEmergencyContacts);
 router.put('/emergency-contacts', controller.updateEmergencyContacts);

@@ -3,7 +3,6 @@ const Student = require('../models/student.model');
 const Manager = require('../models/manager.model');
 const Complaint = require('../models/complaint.model');
 const FeePayment = require('../models/feePayment.model');
-const Notification = require('../models/notification.model');
 const LeaveRequest = require('../models/leaveRequest.model');
 const ParentCommunication = require('../models/parentCommunication.model');
 const notificationService = require('./notification.service');
@@ -141,6 +140,15 @@ const resolveAccessibleStudentIds = (scope, studentId = null) => {
     return [normalizedStudentId];
 };
 
+const getParentNotifications = async (parentId, studentIds, filters = {}) => notificationService.getNotificationsForRole(
+    'PARENT',
+    {
+        ...filters,
+        user_id: parentId,
+        student_ids: studentIds,
+    }
+);
+
 const getAccessibleStudents = (scope, studentId = null) => {
     const accessibleStudentIds = resolveAccessibleStudentIds(scope, studentId);
     return scope.students.filter((student) => accessibleStudentIds.includes(toIdString(student._id)));
@@ -214,16 +222,7 @@ const getDashboard = async (parentId) => {
             ? LeaveRequest.find({ student_id: { $in: accessibleStudentIds } }).sort({ createdAt: -1 })
             : [],
         ParentCommunication.find({ parent_id: parentId }).sort({ createdAt: -1 }),
-        Notification.find({
-            $or: [
-                { recipient_role: 'PARENT' },
-                { recipient_role: 'ALL' },
-                ...(accessibleStudentIds.length ? [{ student_id: { $in: accessibleStudentIds } }] : []),
-            ],
-        })
-            .populate('student_id', 'name email')
-            .sort({ createdAt: -1 })
-            .limit(5),
+        getParentNotifications(parentId, accessibleStudentIds, { limit: 5 }),
     ]);
 
     const feeSummary = feePayments.reduce((accumulator, record) => {
@@ -460,16 +459,7 @@ const getCommunications = async (parentId, filters = {}) => {
             .populate('student_id', 'name email status hostel_status')
             .populate('manager_id', 'name email phone building_name')
             .sort({ createdAt: -1 }),
-        Notification.find({
-            $or: [
-                { recipient_role: 'PARENT' },
-                { recipient_role: 'ALL' },
-                ...(notificationStudentIds.length ? [{ student_id: { $in: notificationStudentIds } }] : []),
-            ],
-        })
-            .populate('student_id', 'name email')
-            .sort({ createdAt: -1 })
-            .limit(limit),
+        getParentNotifications(parentId, notificationStudentIds, { limit }),
     ]);
 
     const summary = communications.reduce((accumulator, communication) => {
@@ -586,6 +576,29 @@ const updateEmergencyContacts = async (parentId, payload) => {
     };
 };
 
+const getNotifications = async (parentId, filters = {}) => {
+    const scope = await getParentScope(parentId);
+    const studentIds = filters.student_id
+        ? resolveAccessibleStudentIds(scope, filters.student_id)
+        : scope.studentIds;
+
+    return getParentNotifications(parentId, studentIds, filters);
+};
+
+const markNotificationsRead = async (parentId, payload) => {
+    const scope = await getParentScope(parentId);
+    const studentIds = payload.student_id
+        ? resolveAccessibleStudentIds(scope, payload.student_id)
+        : scope.studentIds;
+
+    return notificationService.markNotificationsRead({
+        ...payload,
+        recipient_role: 'PARENT',
+        user_id: parentId,
+        student_ids: studentIds,
+    });
+};
+
 module.exports = {
     getProfile,
     updateProfile,
@@ -597,4 +610,6 @@ module.exports = {
     createCommunication,
     getEmergencyContacts,
     updateEmergencyContacts,
+    getNotifications,
+    markNotificationsRead,
 };

@@ -3,7 +3,6 @@ const Manager = require('../models/manager.model');
 const LeaveRequest = require('../models/leaveRequest.model');
 const Complaint = require('../models/complaint.model');
 const FeePayment = require('../models/feePayment.model');
-const Notification = require('../models/notification.model');
 const hostelPolicies = require('../data/hostelPolicies');
 const notificationService = require('./notification.service');
 
@@ -216,16 +215,11 @@ const getDashboard = async (studentId) => {
         Complaint.countDocuments({ student_id: studentId, status: 'IN_PROGRESS' }),
         Complaint.countDocuments({ student_id: studentId, status: 'RESOLVED' }),
         FeePayment.find({ student_id: studentId }).sort({ year: -1, createdAt: -1 }),
-        Notification.find({
-            $or: [
-                { student_id: studentId },
-                { recipient_role: 'STUDENT' },
-                { recipient_role: 'ALL' },
-            ],
-        })
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .lean(),
+        notificationService.getNotificationsForRole('STUDENT', {
+            student_ids: [studentId],
+            user_id: studentId,
+            limit: 5,
+        }),
     ]);
 
     const feeSummary = feeRecords.reduce((accumulator, record) => {
@@ -476,6 +470,22 @@ const getHostelPolicies = async (filters = {}) => {
     };
 };
 
+const getNotifications = async (studentId, filters = {}) => notificationService.getNotificationsForRole(
+    'STUDENT',
+    {
+        ...filters,
+        student_ids: [studentId],
+        user_id: studentId,
+    }
+);
+
+const markNotificationsRead = async (studentId, payload) => notificationService.markNotificationsRead({
+    ...payload,
+    recipient_role: 'STUDENT',
+    user_id: studentId,
+    student_ids: [studentId],
+});
+
 module.exports = {
     getProfile,
     updateProfile,
@@ -487,4 +497,6 @@ module.exports = {
     submitComplaint,
     getFeeStatus,
     getHostelPolicies,
+    getNotifications,
+    markNotificationsRead,
 };

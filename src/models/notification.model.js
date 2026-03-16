@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+const notificationReadSchema = new mongoose.Schema({
+    user_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+    },
+    role: {
+        type: String,
+        enum: ['ADMIN', 'MANAGER', 'STUDENT', 'PARENT'],
+        required: true,
+    },
+    read_at: {
+        type: Date,
+        default: Date.now,
+    },
+}, { _id: false });
+
 const notificationSchema = new mongoose.Schema({
     student_id: {
         type: mongoose.Schema.Types.ObjectId,
@@ -41,6 +57,15 @@ const notificationSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    read_at: {
+        type: Date,
+        default: null,
+    },
+    read_by: [notificationReadSchema],
+    delivery_channels: [{
+        type: String,
+        enum: ['IN_APP', 'EMAIL', 'SMS'],
+    }],
     date: {
         type: Date,
         default: Date.now,

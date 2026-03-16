@@ -126,6 +126,14 @@ const getLeaveRequests = async (req, res) => runParamRequest(
     ({ user, data }) => managerService.getLeaveRequests(user._id, data)
 );
 
+const updateLeaveRequest = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Update leave request',
+    'Leave request updated successfully',
+    ({ user, data }) => managerService.updateLeaveRequest(user._id, data)
+);
+
 const getComplaints = async (req, res) => runParamRequest(
     req,
     res,
@@ -140,6 +148,22 @@ const updateComplaint = async (req, res) => runBodyRequest(
     'Update complaint',
     'Complaint updated successfully',
     ({ user, data }) => managerService.updateComplaint(user._id, data)
+);
+
+const getNotifications = async (req, res) => runParamRequest(
+    req,
+    res,
+    'Get manager notifications',
+    'Notifications retrieved successfully',
+    ({ user, data }) => managerService.getNotifications(user._id, data)
+);
+
+const markNotificationsRead = async (req, res) => runBodyRequest(
+    req,
+    res,
+    'Mark manager notifications read',
+    'Notifications marked as read successfully',
+    ({ user, data }) => managerService.markNotificationsRead(user._id, data)
 );
 
 const recordAttendance = async (req, res) => runBodyRequest(
@@ -168,8 +192,11 @@ module.exports = {
     checkOutStudent,
     getRoomVacancy,
     getLeaveRequests,
+    updateLeaveRequest,
     getComplaints,
     updateComplaint,
     recordAttendance,
     getAttendanceReport,
+    getNotifications,
+    markNotificationsRead,
 };

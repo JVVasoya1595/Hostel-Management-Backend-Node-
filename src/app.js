@@ -18,10 +18,23 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
+app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/manager', require('./routes/manager.routes'));
 app.use('/api/student', require('./routes/student.routes'));
 app.use('/api/parent', require('./routes/parent.routes'));
+app.use('/api/warden', require('./routes/warden.routes'));
+app.use('/api/admissions', require('./routes/admissions.routes'));
+app.use('/api/documents', require('./routes/documents.routes'));
+app.use('/api/gate-pass', require('./routes/gatePass.routes'));
+app.use('/api/entry-exit', require('./routes/entryExit.routes'));
+app.use('/api/maintenance', require('./routes/maintenance.routes'));
+app.use('/api/food', require('./routes/food.routes'));
+app.use('/api/id-cards', require('./routes/idCards.routes'));
+app.use('/api/accessories', require('./routes/accessories.routes'));
+app.use('/api/vehicles', require('./routes/vehicles.routes'));
+app.use('/api/refunds', require('./routes/refunds.routes'));
+app.use('/api/permissions', require('./routes/permissions.routes'));
 app.use('/api/floor', require('./routes/floor.routes'));
 app.use('/api/room', require('./routes/room.routes'));
 

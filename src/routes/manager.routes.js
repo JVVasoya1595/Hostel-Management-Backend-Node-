@@ -12,8 +12,11 @@ router.post('/check-out', controller.checkOutStudent);
 router.get('/rooms/vacancy/:data', controller.getRoomVacancy);
 
 router.get('/leave-requests/:data', controller.getLeaveRequests);
+router.put('/leave-requests', controller.updateLeaveRequest);
 router.get('/complaints/:data', controller.getComplaints);
 router.put('/complaints', controller.updateComplaint);
+router.get('/notifications/:data', controller.getNotifications);
+router.put('/notifications/read', controller.markNotificationsRead);
 
 router.post('/attendance', controller.recordAttendance);
 router.get('/attendance/:data', controller.getAttendanceReport);
