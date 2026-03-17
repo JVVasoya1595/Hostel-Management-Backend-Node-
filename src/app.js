@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 
 app.use(express.json());
@@ -16,6 +17,11 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
+
+// Internal API tester (offline-friendly). Open http://localhost:5010/tester
+app.use('/tester', express.static(path.join(__dirname, '../public/api-tester')));
+// Serve browser CryptoJS from local node_modules so the tester works without internet access.
+app.use('/tester/vendor', express.static(path.join(__dirname, '../node_modules/crypto-js')));
 
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));

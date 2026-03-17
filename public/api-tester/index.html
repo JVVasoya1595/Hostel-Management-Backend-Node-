@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HostelCore API Tester</title>
+    <style>
+      :root {
+        --bg: #0b0f17;
+        --panel: #111827;
+        --panel-2: #0f172a;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --border: rgba(255, 255, 255, 0.12);
+        --accent: #22c55e;
+        --danger: #ef4444;
+        --warn: #f59e0b;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        color: var(--text);
+        background: radial-gradient(1200px 500px at 20% -10%, rgba(34, 197, 94, 0.18), transparent 60%),
+          radial-gradient(900px 400px at 80% 0%, rgba(59, 130, 246, 0.14), transparent 55%),
+          linear-gradient(180deg, var(--bg), #070a10 60%, #060810);
+      }
+      a {
+        color: inherit;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 18px 16px 48px;
+      }
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 2px 18px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 0.3px;
+      }
+      .sub {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 420px 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 980px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.92), rgba(15, 23, 42, 0.85));
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+      .card h2 {
+        margin: 0;
+        padding: 12px 14px;
+        font-size: 14px;
+        border-bottom: 1px solid var(--border);
+        color: rgba(229, 231, 235, 0.95);
+      }
+      .card .body {
+        padding: 12px 14px 14px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin: 10px 0 6px;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(3, 6, 16, 0.6);
+        color: var(--text);
+        outline: none;
+        font-size: 13px;
+      }
+      textarea {
+        font-family: var(--mono);
+        min-height: 140px;
+        resize: vertical;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      @media (max-width: 980px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+      .btns {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      button.primary {
+        background: rgba(34, 197, 94, 0.14);
+        border-color: rgba(34, 197, 94, 0.45);
+      }
+      button.danger {
+        background: rgba(239, 68, 68, 0.14);
+        border-color: rgba(239, 68, 68, 0.45);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.25);
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .pill strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .statusLine {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .statusOk {
+        color: var(--accent);
+        font-weight: 800;
+      }
+      .statusBad {
+        color: var(--danger);
+        font-weight: 800;
+      }
+      .statusWarn {
+        color: var(--warn);
+        font-weight: 800;
+      }
+      pre {
+        margin: 0;
+        padding: 12px 12px;
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.35;
+        color: rgba(229, 231, 235, 0.95);
+        background: rgba(0, 0, 0, 0.35);
+        border-top: 1px solid var(--border);
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .kv div {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .kv code {
+        font-family: var(--mono);
+        color: rgba(229, 231, 235, 0.95);
+        word-break: break-all;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 10px;
+        line-height: 1.35;
+      }
+      .hint code {
+        font-family: var(--mono);
+        color: rgba(229, 231, 235, 0.95);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <h1>HostelCore API Tester</h1>
+          <div class="sub">Offline-friendly UI to login, AES-encrypt requests, call endpoints, and decrypt responses.</div>
+        </div>
+        <div class="pill"><strong>URL</strong> <span id="origin"></span></div>
+      </header>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Login</h2>
+          <div class="body">
+            <label for="baseUrl">Base URL</label>
+            <input id="baseUrl" />
+
+            <label for="secret">ENCRYPTION_SECRET</label>
+            <input id="secret" placeholder="Paste your .env ENCRYPTION_SECRET here" />
+
+            <label for="mode">Encryption Mode</label>
+            <select id="mode">
+              <option value="nested">Nested AES({data: AES(payload)})</option>
+              <option value="outer">Outer-only AES(payload)</option>
+            </select>
+
+            <div class="row">
+              <div>
+                <label for="role">Role</label>
+                <select id="role">
+                  <option value="admin">admin</option>
+                  <option value="manager">manager</option>
+                  <option value="warden">warden</option>
+                  <option value="student">student</option>
+                  <option value="parent">parent</option>
+                </select>
+              </div>
+              <div>
+                <label for="email">Email</label>
+                <input id="email" />
+              </div>
+            </div>
+
+            <label for="password">Password</label>
+            <input id="password" type="password" />
+
+            <div class="btns">
+              <button id="loginBtn" class="primary" type="button">Login</button>
+              <button id="clearBtn" class="danger" type="button">Clear session</button>
+            </div>
+
+            <div id="sessionWrap" style="display:none">
+              <div class="kv">
+                <div>token</div>
+                <code id="sessionToken"></code>
+                <div>id</div>
+                <code id="sessionId"></code>
+                <div>email</div>
+                <code id="sessionEmail"></code>
+                <div>roleKey</div>
+                <code id="sessionRoleKey"></code>
+              </div>
+            </div>
+
+            <div class="hint">
+              Note: Encrypted endpoints require the client to send an encrypted payload (GET uses <code>:data</code> in the path;
+              POST/PUT/DELETE use JSON body <code>{"data":"..."}</code>).
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Request Builder</h2>
+          <div class="body">
+            <div class="statusLine">
+              <div>Status: <span id="status" class="statusWarn">Not logged in</span></div>
+              <div class="btns" style="margin-top:0">
+                <button id="quickManagers" type="button">Quick: Get managers</button>
+                <button id="quickRooms" type="button">Quick: Available rooms</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div>
+                <label for="method">Method</label>
+                <select id="method">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+              </div>
+              <div>
+                <label for="path">Path (use :data for encrypted GET param)</label>
+                <input id="path" />
+              </div>
+            </div>
+
+            <label for="bodyJson">Body payload (this gets AES-encrypted)</label>
+            <textarea id="bodyJson"></textarea>
+
+            <label for="queryJson">Query params JSON (optional)</label>
+            <textarea id="queryJson" style="min-height:90px"></textarea>
+
+            <div class="btns">
+              <button id="sendBtn" class="primary" type="button">Send</button>
+            </div>
+          </div>
+
+          <h2>Response</h2>
+          <pre id="rawResponse">(no response yet)</pre>
+          <h2>Decrypted response.data (if present)</h2>
+          <pre id="decryptedResponse">(nothing decrypted)</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Local CryptoJS (served by backend at /tester/vendor/crypto-js.js) -->
+    <script src="./vendor/crypto-js.js"></script>
+
+    <script>
+      document.getElementById("origin").textContent = location.origin;
+
+      const els = {
+        baseUrl: document.getElementById("baseUrl"),
+        secret: document.getElementById("secret"),
+        mode: document.getElementById("mode"),
+        role: document.getElementById("role"),
+        email: document.getElementById("email"),
+        password: document.getElementById("password"),
+        loginBtn: document.getElementById("loginBtn"),
+        clearBtn: document.getElementById("clearBtn"),
+        sessionWrap: document.getElementById("sessionWrap"),
+        sessionToken: document.getElementById("sessionToken"),
+        sessionId: document.getElementById("sessionId"),
+        sessionEmail: document.getElementById("sessionEmail"),
+        sessionRoleKey: document.getElementById("sessionRoleKey"),
+        status: document.getElementById("status"),
+        method: document.getElementById("method"),
+        path: document.getElementById("path"),
+        bodyJson: document.getElementById("bodyJson"),
+        queryJson: document.getElementById("queryJson"),
+        sendBtn: document.getElementById("sendBtn"),
+        quickManagers: document.getElementById("quickManagers"),
+        quickRooms: document.getElementById("quickRooms"),
+        rawResponse: document.getElementById("rawResponse"),
+        decryptedResponse: document.getElementById("decryptedResponse"),
+      };
+
+      const STORAGE_KEYS = {
+        baseUrl: "hostelcore_tester_baseUrl",
+        secret: "hostelcore_tester_secret",
+        mode: "hostelcore_tester_mode",
+      };
+
+      function setStatus(kind, text) {
+        els.status.className = kind === "ok" ? "statusOk" : kind === "bad" ? "statusBad" : "statusWarn";
+        els.status.textContent = text;
+      }
+
+      function safeJsonParse(value) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      function aesEncrypt(obj, secret) {
+        return CryptoJS.AES.encrypt(JSON.stringify(obj), secret).toString();
+      }
+
+      function aesDecrypt(cipherText, secret) {
+        const bytes = CryptoJS.AES.decrypt(cipherText, secret);
+        const text = bytes.toString(CryptoJS.enc.Utf8);
+        return JSON.parse(text);
+      }
+
+      function encodeCipher(cipherText) {
+        return encodeURIComponent(cipherText);
+      }
+
+      function buildCipher(payloadObj) {
+        const secret = els.secret.value.trim();
+        if (!secret) throw new Error("ENCRYPTION_SECRET is required");
+        const mode = els.mode.value;
+        if (mode === "outer") return aesEncrypt(payloadObj, secret);
+        const inner = aesEncrypt(payloadObj, secret);
+        return aesEncrypt({ data: inner }, secret);
+      }
+
+      function tryDecryptNested(cipherText, secret) {
+        const first = aesDecrypt(cipherText, secret);
+        if (first && typeof first === "object" && typeof first.data === "string") {
+          try {
+            return aesDecrypt(first.data, secret);
+          } catch {
+            return first;
+          }
+        }
+        return first;
+      }
+
+      function decryptIfPossible(json) {
+        const secret = els.secret.value.trim();
+        if (!secret) return "";
+        if (!json || typeof json !== "object") return "";
+        if (!json.data || typeof json.data !== "string") return "";
+        try {
+          const decrypted = tryDecryptNested(json.data, secret);
+          return JSON.stringify(decrypted, null, 2);
+        } catch (err) {
+          return `Failed to decrypt response.data: ${err && err.message ? err.message : String(err)}`;
+        }
+      }
+
+      let session = null;
+
+      function renderSession() {
+        if (!session) {
+          els.sessionWrap.style.display = "none";
+          els.sessionToken.textContent = "";
+          els.sessionId.textContent = "";
+          els.sessionEmail.textContent = "";
+          els.sessionRoleKey.textContent = "";
+          return;
+        }
+
+        els.sessionWrap.style.display = "block";
+        els.sessionToken.textContent = session.token;
+        els.sessionId.textContent = session.id;
+        els.sessionEmail.textContent = session.email;
+        els.sessionRoleKey.textContent = session.roleKey;
+      }
+
+      function autoFillBodyFromSession() {
+        if (!session) return;
+        const next = safeJsonParse(els.bodyJson.value) || {};
+        next.token = session.token;
+        next.id = session.id;
+        next.email = session.email;
+        next.role = session.roleKey;
+        els.bodyJson.value = JSON.stringify(next, null, 2);
+      }
+
+      async function doLogin() {
+        els.rawResponse.textContent = "";
+        els.decryptedResponse.textContent = "";
+
+        try {
+          if (typeof CryptoJS === "undefined") {
+            setStatus("bad", "CryptoJS failed to load");
+            els.rawResponse.textContent = "Missing CryptoJS. Ensure `/tester/vendor/crypto-js.js` is reachable.";
+            return;
+          }
+
+          setStatus("warn", "Logging in...");
+          const baseUrl = els.baseUrl.value.trim().replace(/\/$/, "");
+          const role = els.role.value;
+
+          const url = baseUrl + `/api/auth/${role}/login`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: els.email.value, password: els.password.value }),
+          });
+
+          const json = await res.json().catch(() => ({}));
+          els.rawResponse.textContent = JSON.stringify(json, null, 2);
+
+          if (!res.ok) {
+            setStatus("bad", `Login failed (${res.status})`);
+            return;
+          }
+
+          const token = json && json.data ? json.data.token : null;
+          const user = json && json.data ? json.data.user : null;
+          const roleVal = json && json.data ? json.data.role : null;
+
+          if (!token || !user || !user._id) {
+            setStatus("bad", "Login response missing token/user");
+            return;
+          }
+
+          session = {
+            token,
+            id: user._id,
+            email: user.email || els.email.value,
+            role: roleVal,
+            roleKey: role,
+          };
+
+          renderSession();
+          autoFillBodyFromSession();
+          setStatus("ok", `Logged in as ${roleVal || role}`);
+        } catch (err) {
+          setStatus("bad", "Login error");
+          els.rawResponse.textContent = String(err && err.message ? err.message : err);
+        }
+      }
+
+      async function sendRequest() {
+        els.rawResponse.textContent = "";
+        els.decryptedResponse.textContent = "";
+
+        try {
+          if (typeof CryptoJS === "undefined") {
+            setStatus("bad", "CryptoJS failed to load");
+            els.rawResponse.textContent = "Missing CryptoJS. Ensure `/tester/vendor/crypto-js.js` is reachable.";
+            return;
+          }
+
+          const payload = safeJsonParse(els.bodyJson.value);
+          if (!payload) {
+            setStatus("bad", "Body JSON is invalid");
+            return;
+          }
+
+          const query = safeJsonParse(els.queryJson.value);
+          if (!query) {
+            setStatus("bad", "Query JSON is invalid");
+            return;
+          }
+
+          const cipher = buildCipher(payload);
+          const dataUrl = encodeCipher(cipher);
+
+          const rawPath = els.path.value.includes(":data") ? els.path.value.replace(":data", dataUrl) : els.path.value;
+          const baseUrl = els.baseUrl.value.trim().replace(/\/$/, "");
+          const url = new URL(baseUrl + rawPath);
+
+          for (const key of Object.keys(query)) {
+            const val = query[key];
+            if (val === undefined || val === null) continue;
+            url.searchParams.set(key, typeof val === "string" ? val : JSON.stringify(val));
+          }
+
+          const method = els.method.value;
+          const opts = { method, headers: {} };
+          if (method !== "GET") {
+            opts.headers["Content-Type"] = "application/json";
+            opts.body = JSON.stringify({ data: encodeURIComponent(cipher) });
+          }
+
+          setStatus("warn", "Calling API...");
+          const res = await fetch(url.toString(), opts);
+          const json = await res.json().catch(() => ({}));
+          els.rawResponse.textContent = JSON.stringify(json, null, 2);
+          els.decryptedResponse.textContent = decryptIfPossible(json) || "(nothing decrypted)";
+          setStatus(res.ok ? "ok" : "bad", (res.ok ? "OK" : "Error") + ` (${res.status})`);
+        } catch (err) {
+          setStatus("bad", String(err && err.message ? err.message : err));
+        }
+      }
+
+      function clearSession() {
+        session = null;
+        renderSession();
+        setStatus("warn", "Not logged in");
+      }
+
+      function quickGetManagers() {
+        els.method.value = "GET";
+        els.path.value = "/api/admin/managers/:data";
+      }
+
+      function quickGetRoomsAvailable() {
+        els.method.value = "GET";
+        els.path.value = "/api/room/available/:data";
+      }
+
+      function loadDefaults() {
+        els.baseUrl.value = localStorage.getItem(STORAGE_KEYS.baseUrl) || location.origin;
+        els.secret.value = localStorage.getItem(STORAGE_KEYS.secret) || "";
+        els.mode.value = localStorage.getItem(STORAGE_KEYS.mode) || "nested";
+
+        els.path.value = "/api/admin/managers/:data";
+        els.bodyJson.value = JSON.stringify({ token: "", id: "", email: "", role: "admin" }, null, 2);
+        els.queryJson.value = JSON.stringify({}, null, 2);
+      }
+
+      function persistDefaults() {
+        localStorage.setItem(STORAGE_KEYS.baseUrl, els.baseUrl.value.trim());
+        localStorage.setItem(STORAGE_KEYS.secret, els.secret.value);
+        localStorage.setItem(STORAGE_KEYS.mode, els.mode.value);
+      }
+
+      els.loginBtn.addEventListener("click", () => {
+        persistDefaults();
+        doLogin();
+      });
+      els.clearBtn.addEventListener("click", clearSession);
+      els.sendBtn.addEventListener("click", () => {
+        persistDefaults();
+        sendRequest();
+      });
+      els.quickManagers.addEventListener("click", quickGetManagers);
+      els.quickRooms.addEventListener("click", quickGetRoomsAvailable);
+
+      els.secret.addEventListener("change", persistDefaults);
+      els.baseUrl.addEventListener("change", persistDefaults);
+      els.mode.addEventListener("change", persistDefaults);
+
+      loadDefaults();
+      renderSession();
+    </script>
+  </body>
+</html>
+
